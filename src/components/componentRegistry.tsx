@@ -1,133 +1,130 @@
-// src/components/ComponentRenderer.tsx
-import React, { useState, useEffect } from 'react';
-import { transform } from '@babel/standalone';
-import { ErrorBoundary } from './ErrorBoundary';
-import { App } from 'obsidian';
-import { useStorage } from '../hooks/useStorage';
-import { ComponentRegistry } from '../core/registry';
-import { StorageManager } from '../core/storage';
+// src/config/componentRegistry.ts
+import React from 'react';
+import {
+    PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+    ComposedChart, BarChart, XAxis, YAxis, Bar, Line, Area,
+    ReferenceLine, LineChart
+} from 'recharts';
+import { createChart } from 'lightweight-charts';
+import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force';
+import {
+    Upload, Activity, AlertCircle, TrendingUp, TrendingDown,
+    // Add other icons as needed
+} from 'lucide-react';
+import {
+    Card, CardHeader, CardTitle, CardContent,
+    Tabs, TabsContent, TabsList, TabsTrigger,
+    Switch,
+} from 'src/components/ui/';
 
-interface ComponentRendererProps {
-    code: string;
-    scopeId: string;
-    inline?: boolean;
-    storage: StorageManager;  // Add storage prop
-    children?: React.ReactNode;
-}
+// Core React hooks wrapper
+// Type for React utilities (non-component exports)
+export const ReactUtils = {
+    React,
+    useState: React.useState,
+    useEffect: React.useEffect,
+    useRef: React.useRef,
+    useMemo: React.useMemo,
+    useCallback: React.useCallback,
+} as const;
 
-interface TransformError {
-    message: string;
-    line?: number;
-    column?: number;
-}
+// Only actual components
+export const Components = {
+    // Chart Components
+    PieChart,
+    Pie,
+    Cell,
+    ResponsiveContainer,
+    Tooltip,
+    Legend,
+    ComposedChart,
+    BarChart,
+    XAxis,
+    YAxis,
+    Bar,
+    Line,
+    Area,
+    ReferenceLine,
+    LineChart,
+    
+    // UI Components
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+    Switch,
 
-const ErrorDisplay: React.FC<{ error: TransformError }> = ({ error }) => {
-    return (
-        <div className="react-component-error">
-            <p>Error in component:</p>
-            <pre className="error-message">
-                {error.message}
-                {error.line && error.column && 
-                    `\nAt line ${error.line}, column ${error.column}`
-                }
-            </pre>
-        </div>
-    );
+    // Icons
+    Upload,
+    Activity,
+    AlertCircle,
+    TrendingUp,
+    TrendingDown,
+} as const;
+
+// Utilities that aren't React components
+export const Utilities = {
+    createChart,
+    forceSimulation,
+    forceLink,
+    forceManyBody,
+    forceCenter,
+} as const;
+
+
+
+// All exports combined
+export const ComponentRegistry = {
+    ...ReactUtils,
+    ...Components,
+    ...Utilities,
+} as const;
+
+
+
+// Optional: Type guard for checking if a component exists
+export const hasComponent = (name: string): name is keyof typeof ComponentRegistry => {
+    return name in ComponentRegistry;
 };
 
-export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
-    code,
-    scopeId,
-    storage,  // Get storage from props
-    inline = false
-}) => {
-    const [Component, setComponent] = useState<React.ComponentType | null>(null);
-    const [error, setError] = useState<TransformError | null>(null);
+// main.tsx can now be simplified to:
+// import { ComponentRegistry } from './config/componentRegistry';
+// const scope = ComponentRegistry;
 
-    useEffect(() => {
-        const createComponent = async () => {
-            try {
-                const transformedCode = transform(code, {
-                    presets: ['env','react'],
-                    plugins: [
-                        '@babel/plugin-syntax-jsx', // Add JSX syntax plugin explicitly
-                        '@babel/plugin-transform-react-jsx', // Transforms JSX into JS
-                        '@babel/plugin-proposal-class-properties', // Handles class properties
-                        '@babel/plugin-proposal-object-rest-spread', // Handles object spread syntax
-                    ],
-                    filename: `component-${scopeId}`,
-                    sourceType: 'module',
-                    configFile: false,
-                    babelrc: false
-                }).code;
-                console.log('Transformed Code:', transformedCode);
-                // Create storage hook bound to this storage instance
-                const boundUseStorage = <T,>(key: string, defaultValue: T) => 
-                    useStorage(key, defaultValue, storage);
 
-                // Enhanced scope with registry and storage
-                const scope = {
-                    React,
-                    useState: React.useState,
-                    useEffect: React.useEffect,
-                    useRef: React.useRef,
-                    useStorage: boundUseStorage, // Add bound storage hook
-                    ...ComponentRegistry,
-                };
-
-                const componentFn = new Function(
-                    ...Object.keys(scope),
-                    `try {
-                        ${transformedCode}
-                        return Component;
-                    } catch (err) {
-                        console.error('Error in component execution:', err);
-                        throw err;
-                    }`
-                );
-
-                const ComponentType = componentFn(...Object.values(scope));
-                setComponent(() => ComponentType);
-                setError(null);
-            } catch (err) {
-                console.error('Component transformation failed:', err);
-                setError({
-                    message: err instanceof Error ? err.message : 'Unknown error',
-                    line: (err as any).loc?.line,
-                    column: (err as any).loc?.column
-                });
-                setComponent(null);
-            }
-        };
-
-        createComponent();
-    }, [code, scopeId, storage]); // Add storage to dependencies
-
-    const Wrapper: React.FC<{ children: React.ReactNode }> = 
-        inline ? ({ children }) => (
-            <span className="inline-component">{children}</span>
-        ) : ({ children }) => (
-            <div className="block-component">{children}</div>
-        );
-
-    if (error) {
-        return <ErrorDisplay error={error} />;
-    }
-
-    if (!Component) {
-        return null;
-    }
-
-    return (
-        <Wrapper>
-            <div 
-                className="component-sandbox"
-                onClick={e => e.stopPropagation()}
-            >
-                <ErrorBoundary>
-                    <Component />
-                </ErrorBoundary>
-            </div>
-        </Wrapper>
-    );
+/* Optionol stuff
+// Type for actual components only
+type ComponentsOnly = {
+    [K in keyof typeof Components]: typeof Components[K];
 };
+
+// Type for props of actual components
+export type ComponentProps = {
+    [K in keyof ComponentsOnly]: ComponentsOnly[K] extends ComponentType<infer P> ? P : never;
+};
+
+// Type guard for checking if something is a component
+export const isComponent = (name: keyof typeof ComponentRegistry): name is keyof ComponentsOnly => {
+    return name in Components;
+};
+
+// Type guard for checking if something is a utility
+export const isUtility = (name: keyof typeof ComponentRegistry): name is keyof typeof Utilities => {
+    return name in Utilities;
+};
+
+// Helper to get component safely
+export function getComponent<K extends keyof ComponentsOnly>(name: K): ComponentsOnly[K] {
+    return Components[name];
+}
+
+// Optional: Type-safe hook usage
+type Hook<T> = (...args: any[]) => T;
+export const getHook = <T>(name: keyof typeof ReactUtils): Hook<T> | undefined => {
+    const hook = ReactUtils[name];
+    return typeof hook === 'function' ? hook as Hook<T> : undefined;
+};*/
