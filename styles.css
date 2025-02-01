@@ -1,0 +1,335 @@
+/* styles.css */
+
+/* Spacing utilities */
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.p-2 { padding: 0.5rem; }
+.p-4 { padding: 1rem; }
+
+/* Layout utilities */
+.flex { display: flex; }
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
+
+.w-full { width: 100%; }
+.space-y-2 > * + * { margin-top: 0.5rem; }
+
+/* Colors - using Obsidian CSS variables */
+.text-green-500 { color: var(--color-green); }
+.text-red-500 { color: var(--color-red); }
+.text-blue-500 { color: var(--interactive-accent); }
+
+/* Font utilities */
+.font-medium { font-weight: 500; }
+.text-sm { font-size: 0.875rem; }
+.text-lg { font-size: 1.125rem; }
+
+
+/* Border utilities */
+.rounded { border-radius: 4px; }
+.border { border: 1px solid var(--background-modifier-border); }
+.border-slate-700 { border-color: var(--background-modifier-border-focus); }
+
+/* Component styles */
+.react-plugin-card {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    margin-bottom: 1rem; }
+
+.react-plugin-card-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--background-modifier-border); }
+
+.react-plugin-card-title {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-normal); }
+
+.react-plugin-card-content { padding: 1rem; }
+
+.react-plugin-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem; }
+
+.react-plugin-tabs-list {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 0.5rem; }
+
+.react-plugin-tab-trigger {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-radius: 4px; }
+
+.react-plugin-tab-trigger[data-state="active"] {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal); }
+
+/* Chart container styles */
+.chart-container {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 0;
+    margin: 0;
+    overflow: hidden; /* Add this to prevent any overflow */
+    min-height: 400px;
+    background: var(--background-secondary); }
+
+    .tv-lightweight-charts {
+        height: 500px !important; /* Force height if needed 
+        overflow: visible; /* Show x-axis labels if they overflow */
+    }
+    
+
+/* List styles */
+.list-content {
+    margin: 0;
+    padding-left: 1.5rem;
+    list-style-type: none; }
+
+.list-content li {
+    margin-bottom: 0.5rem;
+    color: var(--text-normal); }
+
+.heading {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600; }
+
+/* Prevent conflicts with Obsidian's styles */
+.react-plugin-card button { box-shadow: none; }
+
+.react-plugin-card button:hover { box-shadow: none; }
+.react-component-error {
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+}
+
+.react-component-error pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+
+/* Dark mode adjustments are handled by Tailwind classes */
+/*
+
+This CSS file will be included with your plugin, and
+available in the app when your plugin is enabled.
+
+If your plugin does not need CSS, delete this file.
+
+*/
+
+/* Chart container styles */
+.recharts-wrapper {
+    min-height: 400px !important;
+    min-width: 300px !important;
+}
+
+/* Ensure proper sizing for ResponsiveContainer */
+.recharts-responsive-container {
+    min-height: 400px !important;
+    width: 100% !important;
+}
+
+/* Dark mode adjustments for charts */
+.theme-dark .recharts-cartesian-grid line {
+    stroke: rgba(255, 255, 255, 0.1);
+}
+
+.theme-dark .recharts-text {
+    fill: rgba(255, 255, 255, 0.8);
+}
+
+.theme-dark .recharts-tooltip-wrapper {
+    background-color: #1a1b1e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+
+/*Tail Wind stuff */
+/* styles.css */
+
+/* Layout */
+.w-full { width: 100%; }
+.w-3\/4 { width: 75%; }
+.w-1\/2 { width: 50%; }
+.h-64 { height: 16rem; }
+.h-32 { height: 8rem; }
+.h-16 { height: 4rem; }
+.relative { position: relative; }
+.absolute { position: absolute; }
+
+/* Spacing */
+.p-4 { padding: 1rem; }
+.mt-16 { margin-top: 4rem; }
+.mt-8 { margin-top: 2rem; }
+.mt-4 { margin-top: 1rem; }
+.mb-4 { margin-bottom: 1rem; }
+.ml-8 { margin-left: 2rem; }
+.top-2 { top: 0.5rem; }
+.left-2 { left: 0.5rem; }
+
+/* Block colors - with dark mode support */
+.bg-red-200 { 
+    background-color: rgba(254, 202, 202, 0.8); 
+}
+.bg-orange-200 { 
+    background-color: rgba(254, 215, 170, 0.8); 
+}
+.bg-yellow-200 { 
+    background-color: rgba(254, 240, 138, 0.8); 
+}
+.bg-slate-100 { 
+    background-color: rgba(241, 245, 249, 0.8); 
+}
+
+.theme-dark .bg-red-200 { 
+    background-color: rgba(254, 202, 202, 0.2); 
+}
+.theme-dark .bg-orange-200 { 
+    background-color: rgba(254, 215, 170, 0.2); 
+}
+.theme-dark .bg-yellow-200 { 
+    background-color: rgba(254, 240, 138, 0.2); 
+}
+.theme-dark .bg-slate-100 { 
+    background-color: rgba(241, 245, 249, 0.1); 
+}
+
+/* Border colors */
+.border-red-500 { border-color: rgb(239, 68, 68); }
+.border-orange-500 { border-color: rgb(249, 115, 22); }
+.border-yellow-500 { border-color: rgb(234, 179, 8); }
+
+/* Border styles */
+.border-2 { border-width: 2px; }
+.rounded-lg { border-radius: 0.5rem; }
+
+/* Grid */
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gap-4 { gap: 1rem; }
+
+/* Typography */
+.text-sm { font-size: 0.875rem; }
+.font-medium { font-weight: 500; }
+
+/* Flex */
+.flex { display: flex; }
+.items-center { align-items: center; }
+
+/* Spacing utilities */
+.space-y-4 > * + * { margin-top: 1rem; }
+.space-y-2 > * + * { margin-top: 0.5rem; }
+
+/* Container styles - ensures proper rendering in Obsidian */
+.react-component-container {
+    width: 100%;
+    margin: 1rem 0;
+    font-family: var(--font-interface);
+    color: var(--text-normal);
+}
+
+.theme-dark .react-component-container {
+    color-scheme: dark;
+}
+
+/* Card styles */
+.card {
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 0.5rem;
+    width: 100%;
+}
+
+.card-header {
+    padding: 1.5rem;
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.card-content {
+    padding: 1.5rem;
+}
+
+
+
+
+
+/* Base text positioning */
+.nested-block-label {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    z-index: 10; /* Ensure text stays above blocks */
+    background-color: inherit; /* Match parent block background */
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* Ensure blocks stack properly */
+.nested-block {
+    position: relative;
+    border: 2px solid;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    z-index: 1; /* Base z-index */
+}
+
+/* Specific z-indices for each block type */
+.nested-block.primary {
+    z-index: 1;
+}
+
+.nested-block.secondary {
+    z-index: 2;
+}
+
+.nested-block.tertiary {
+    z-index: 3;
+}
+
+/* Adjust backgrounds to be slightly transparent */
+.bg-red-200 { 
+    background-color: rgba(254, 202, 202, 0.95); 
+}
+.bg-orange-200 { 
+    background-color: rgba(254, 215, 170, 0.95); 
+}
+.bg-yellow-200 { 
+    background-color: rgba(254, 240, 138, 0.95); 
+}
+
+/* Dark mode adjustments */
+.theme-dark .bg-red-200 { 
+    background-color: rgba(254, 202, 202, 0.15); 
+}
+.theme-dark .bg-orange-200 { 
+    background-color: rgba(254, 215, 170, 0.15); 
+}
+.theme-dark .bg-yellow-200 { 
+    background-color: rgba(254, 240, 138, 0.15); 
+}
+
+/* Ensure proper spacing */
+.nested-block + .nested-block {
+    margin-top: 2rem;
+}
