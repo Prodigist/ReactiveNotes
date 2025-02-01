@@ -130,6 +130,7 @@ class ReactComponentChild extends MarkdownRenderChild {
         code = code.replace(/export\s+const\s+/, 'const ');
         code = code.replace(/export\s+function\s+/, 'function ');
         code = code.replace(/export\s+class\s+/, 'class ');
+        
 
         // Remove type annotations
         //code = code.replace(/:\s*[A-Za-z<>[\]]+/g, '');
@@ -162,19 +163,25 @@ class ReactComponentChild extends MarkdownRenderChild {
             throw new Error('No React component found');
         }
         
+            // Find component name and rename if it's 'Component'
+    const safeName = componentName === 'WrappedComponent' ? 'UserComponent' : componentName;
+    
+    if (componentName === 'WrappedComponent') {
+        code = code.replace(/\bComponent\b/, safeName);
+    }
         // Combine everything
     // added Component assignment
     code = `
             ${chartWrapper}
             ${code}
-            const Component = (() => {
+            const WrappedComponent = (() => {
                 // Add error handling for component existence
-                if (typeof ${componentName} === 'undefined') {
-                    throw new Error(\`Component "${componentName}" was matched but is undefined. Code context: ${code.slice(0, 100)}...\`);
+                if (typeof ${safeName} === 'undefined') {
+                    throw new Error(\`Component "${safeName}" was matched but is undefined. Code context: ${code.slice(0, 100)}...\`);
                 }
-                const isChartComponent = ${componentName}.toString().includes('ResponsiveContainer') || 
-                                       ${componentName}.toString().includes('svg');
-                return isChartComponent ? withChartContainer(${componentName}) : ${componentName};
+                const isChartComponent = ${safeName}.toString().includes('ResponsiveContainer') || 
+                                       ${safeName}.toString().includes('svg');
+                return isChartComponent ? withChartContainer(${safeName}) : ${safeName};
             })();
     `;
 
@@ -182,7 +189,7 @@ class ReactComponentChild extends MarkdownRenderChild {
         return `
             (async () => {
                 ${code}
-                return Component;
+                return WrappedComponent;
             })()
         `;
     }
