@@ -1,94 +1,248 @@
-# Obsidian Sample Plugin
+# ReactiveNotes - Dynamic React Components in Obsidian
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Obsidian Downloads](https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%23483699&label=downloads&query=%24%5B%22reactive-notes%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json)
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+ReactiveNotes transforms your Obsidian notes into interactive documents by enabling full React component capabilities directly within your markdown files.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## Core Capabilities
 
-## First time developing plugins?
+### 1. Interactive Components
+- Write and use React components directly in markdown
+- Full React 18 feature support including Hooks
+- Real-time component updates
+- TypeScript support
+- Hot reloading during development
 
-Quick starting guide for new plugin devs:
+### 2. Data Visualization
+Built-in libraries:
+- **Recharts**: Full suite of chart components
+  - Line, Bar, Area, Pie charts
+  - Custom tooltips and legends
+  - Responsive containers
+- **Lightweight Charts**: Professional-grade financial charts
+  - Candlestick charts
+  - Technical indicators
+  - Custom overlays
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### 3. Canvas Manipulation
+- Direct canvas access for custom drawing
+- Real-time canvas updates
+- Image processing capabilities
+- Custom overlays and annotations
+- Interactive drawing tools
 
-## Releasing new releases
+### 4. Data Processing
+- Real-time data manipulation
+- CSV/Excel file processing
+- Data transformation utilities
+- Pattern recognition
+- Statistical analysis
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+### 5. State Management
+- Persistent storage between sessions
+- State synchronization across components
+- Frontmatter integration
+- Cross-note state management
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+### 6. UI Components
+Ready-to-use components from shadcn/ui:
+- Cards
+- Tabs
+- Dialogs
+- Forms
+- Buttons
+- Alerts
 
-## Adding your plugin to the community plugin list
+## Integration Features
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+### 1. File System Integration
+```javascript
+// Access and manipulate files
+const fileContent = await window.fs.readFile('example.csv');
+const jsonData = await window.fs.readFile('data.json', { encoding: 'utf8' });
 ```
 
-If you have multiple URLs, you can also do:
+### 2. Theme Integration
+```javascript
+// Automatic theme detection
+const theme = getTheme(); // 'dark' or 'light'
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+// Theme-aware styling
+const styles = {
+  background: theme === 'dark' ? '#1a1b1e' : '#ffffff',
+  color: theme === 'dark' ? '#ffffff' : '#000000'
+};
 ```
 
-## API Documentation
+### 3. Data Persistence
+```javascript
+// Persistent storage hook
+const [value, setValue] = useStorage('key', defaultValue);
 
-See https://github.com/obsidianmd/obsidian-api
+// Automatic state persistence
+const [count, setCount] = useStorage('counter', 0);
+```
+
+## Component Types
+
+### 1. Visualization Components
+```react
+// Interactive data visualization
+const DataVisualization = () => {
+  return (
+    <ResponsiveContainer>
+      <LineChart data={data}>
+        <Line type="monotone" dataKey="value" />
+        <Tooltip />
+        <Legend />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+};
+```
+
+### 2. Canvas Components
+```react
+// Interactive canvas usage
+const CanvasComponent = () => {
+  const canvasRef = useRef(null);
+  
+  useEffect(() => {
+    const ctx = canvasRef.current.getContext('2d');
+    // Custom drawing and animations
+  }, []);
+
+  return <canvas ref={canvasRef} />;
+};
+```
+
+### 3. Network Visualizations
+```react
+// Force-directed graphs
+const NetworkGraph = () => {
+  return (
+    <ForceGraph
+      nodes={nodes}
+      links={links}
+      onNodeClick={handleClick}
+    />
+  );
+};
+```
+
+## Technical Features
+
+### 1. React Integration
+- Full React 18 support
+- Hooks support
+- Error Boundaries
+- Suspense support
+- TypeScript enabled
+
+### 2. Performance
+- Efficient re-rendering
+- Automatic cleanup
+- Memory leak prevention
+- Resource management
+- Lazy loading support
+
+### 3. Development Tools
+- Hot reloading
+- Error reporting
+- Debug mode
+- Performance monitoring
+
+## API Access
+
+### 1. Available Libraries
+- React + Hooks
+- Recharts
+- Lightweight Charts
+- d3-force
+- Lucide icons
+- shadcn/ui components
+
+### 2. Utility Functions
+- File system operations
+- Data processing
+- Theme detection
+- State persistence
+- Math operations
+
+### 3. Component Registry
+- Custom component registration
+- Component sharing
+- Dynamic loading
+- Type safety
+
+## Best Practices
+
+### 1. Component Design
+```react
+const ResponsiveComponent = () => {
+  // Use relative units
+  return (
+    <div className="w-full">
+      <ResponsiveContainer width="100%" height={400}>
+        {/* Component content */}
+      </ResponsiveContainer>
+    </div>
+  );
+};
+```
+
+### 2. State Management
+```react
+const StatefulComponent = () => {
+  // Use persistent storage for important state
+  const [data, setData] = useStorage('data-key', initialData);
+  
+  // Use local state for UI-only state
+  const [isOpen, setIsOpen] = useState(false);
+};
+```
+
+### 3. Error Handling
+```react
+const SafeComponent = () => {
+  return (
+    <ErrorBoundary fallback={<ErrorDisplay />}>
+      {/* Component content */}
+    </ErrorBoundary>
+  );
+};
+```
+
+## Limitations
+
+- No external package imports (use provided libraries)
+- Limited to frontend functionality
+- Storage is note-specific through frontmatter
+- Component code must be self-contained
+
+## Future Plans
+
+- Additional visualization libraries
+- Enhanced state management
+- Component sharing mechanism
+- Template system
+- Enhanced debugging tools
+
+## Contributing
+
+Contributions welcome! Please read our [Contributing Guide](CONTRIBUTING.md).
+
+## Support
+
+- Report bugs through [GitHub Issues](https://github.com/YourUsername/ReactiveNotes/issues)
+- Request features in [Discussions](https://github.com/YourUsername/ReactiveNotes/discussions)
+- Join our [Discord community](your-discord-link)
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details
+
+---
+
+<p align="center">Built with ❤️ for the Obsidian community</p>
