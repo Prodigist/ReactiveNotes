@@ -7,35 +7,14 @@ import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 import { StorageManager } from 'src/core/storage';
 import { useStorage } from 'src/hooks/useStorage';
-import { createChart } from 'lightweight-charts';
-import { Card, CardHeader, CardTitle, CardContent } from 'src/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from 'src/components/ui/tabs';
+import { ComponentRegistry } from 'src/components/componentRegistry';
 import { ErrorBoundary } from 'src/components/ErrorBoundary';
+
+//Optional niche market analysis tools
 import { useMarketData } from 'src/core/useMarketData';
 import { createMarketDataHook } from 'src/core/useMarketData';
 import { MarketDataService } from 'src/services/marketDataService';
-import { Switch } from 'src/components/ui/switch';
 import { OrderBlockAnalysisService } from 'src/services/OrderBlockAnalysis';
-import { Upload, Activity,AlertCircle, TrendingUp, TrendingDown, } from 'lucide-react';
-import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force';
-// Add all React components you want to make available
-import {
-    PieChart,
-    Pie,
-    Cell,
-    ResponsiveContainer,
-    Tooltip,
-    Legend,
-    ComposedChart,
-    BarChart,
-    XAxis,
-    YAxis,
-    Bar,
-    Line,
-    Area,
-    ReferenceLine,
-    LineChart,
-} from 'recharts';
 import { MarketDataStorage } from 'src/services/marketDataStorage';
 
 class ReactComponentChild extends MarkdownRenderChild {
@@ -120,6 +99,14 @@ class ReactComponentChild extends MarkdownRenderChild {
         );
     };
     private preprocessCode(code: string): string {
+
+        // Replace CDN imports with script loading
+        code = code.replace(
+        /import\s+(\w+)\s+from\s+['"]https:\/\/cdnjs\.cloudflare\.com\/([^'"]+)['"]/g,
+        (match, importName, cdnPath) => `
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/${cdnPath}';
+            document.body.appendChild(script);`);
         // Remove imports more carefully
         code = code.replace(/import\s+.*?['"]\s*;?\s*$/gm, '');
         code = code.replace(/import\s*{[^}]*}\s*from\s*['"][^'"]*['"];?\s*$/gm, '');
@@ -251,49 +238,12 @@ class ReactComponentChild extends MarkdownRenderChild {
             const useMarketData = createMarketDataHook(this.storage, this.noteFile);
             // Create scope with all required dependencies
             const scope = {
-                React,
-                useState: React.useState,
-                useEffect: React.useEffect,
-                useRef: React.useRef,
-                useMemo: React.useMemo,
+                ...ComponentRegistry,
                 useStorage: boundUseStorage,
                 useMarketData,
-                useCallback:React.useCallback,
                 MarketDataStorage,
                 OrderBlockAnalysisService,
                 MarketDataService,
-                // Chart library
-                createChart,
-                // UI Components
-                Card,
-                CardHeader,
-                CardTitle,
-                CardContent,
-                Tabs,
-                TabsContent,
-                TabsList,
-                TabsTrigger,
-                Switch,
-                PieChart,
-                Pie,
-                Cell,
-                ResponsiveContainer,
-                Tooltip,
-                Legend,
-                ComposedChart,    // Add these chart components
-                BarChart,
-                XAxis,
-                YAxis,
-                Bar,
-                Upload,
-                Area,
-                Line,
-                ReferenceLine,
-                LineChart,
-                Activity, 
-                AlertCircle,
-                TrendingUp, TrendingDown,
-                forceSimulation, forceLink, forceManyBody, forceCenter,
                 getTheme: () => document.body.hasClass('theme-dark') ? 'dark' : 'light',
                 // Add note context
                 noteContext: {
@@ -354,7 +304,7 @@ class ReactComponentChild extends MarkdownRenderChild {
     }
 }
 
-export default class ReactTestPlugin extends Plugin {
+export default class ReactNotesPlugin extends Plugin {
     async onload() {
         // Listen for theme changes
         this.registerEvent(
