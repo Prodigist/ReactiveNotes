@@ -73,6 +73,7 @@ export const Utilities = {
     forceLink,
     forceManyBody,
     forceCenter,
+    THREE: (window as any).THREE || require('three'), // Use global THREE if available
 } as const;
 
 
