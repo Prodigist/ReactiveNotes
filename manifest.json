@@ -2,10 +2,12 @@
 	"id": "reactive-notes",
 	"name": "Reactive Notes",
 	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
-	"description": "Enhances the Obsidian API with react.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": true
+	"minAppVersion": "1.4.0",
+	"description": "Transform your Obsidian vault into a reactive computational environment. Create dynamic React components directly in your notes.",
+	"author": "Elias Noesis",
+	"authorUrl": "https://github.com/Prodigist",
+	"isDesktopOnly": false,
+	"fundingUrl": {
+		"Buy Me A Coffee": "https://www.buymeacoffee.com/prodigist"
+	}
 }

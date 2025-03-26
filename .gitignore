@@ -21,3 +21,32 @@ data.json
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
 .env
+
+
+# Unused development files and directories that should remain locally but not in Git
+
+# Custom primitives directory
+lwc-plugin-custom-primitives/
+
+# Market data services
+src/services/marketDataService.ts
+src/services/marketDataStorage.ts
+src/services/OrderBlockAnalysis.ts
+
+# Unused components
+src/components/OrderblockVisualiser.ts
+src/components/RectPlugin.ts
+src/components/styled.tsx
+src/components/ComponentRenderer.tsx
+
+# Unused core utilities
+src/core/useMarketData.tsx
+src/core/dynamic.tsx
+src/core/registry.tsx
+src/core/scope.ts
+src/core/tailwind.ts
+
+# Build artifacts (commonly ignored)
+main.js.map
+*.tsbuildinfo
+.DS_Store

@@ -1,16 +1,17 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "reactive-notes",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Transform your Obsidian vault into a reactive computational environment with React components.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"buildsole": "node esbuild.config.mjs production",
+		"typecheck": "tsc -noEmit -skipLibCheck",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
 	"keywords": [],
-	"author": "",
-	"license": "MIT",
+	"author": "Elias Noesis",
 	"devDependencies": {
 		"@babel/core": "^7.26.0",
 		"@babel/plugin-proposal-class-properties": "^7.18.6",
