@@ -7,6 +7,8 @@ import {
 } from 'recharts';
 import { createChart } from 'lightweight-charts';
 import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force';
+import { ForceGraph2D, ForceGraph3D } from 'react-force-graph';
+import * as d3 from 'd3';
 import {
     Upload, Activity, AlertCircle, TrendingUp, TrendingDown,
     // Add other icons as needed
@@ -64,6 +66,9 @@ export const Components = {
     AlertCircle,
     TrendingUp,
     TrendingDown,
+
+    d3
+    
 } as const;
 
 // Utilities that aren't React components

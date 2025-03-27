@@ -276,6 +276,7 @@ const DataChart = () => {
 };
 ```
 ````
+![alt text](assets/ResponsiveDatavis.gif)
 ### Canvas Manipulation
 ````
 const DrawingCanvas = () => {
@@ -351,8 +352,19 @@ const NetworkGraph = () => {
 };
 ```
 ````
+![alt text](assets/graphVis.gif)
+### Other Demonstrated Examples
+** Simulator ** (Use within reason for performance)
+![alt text](assets/Simulator.gif)
 
+** File Upload **
+![alt text](assets/FileUpload.gif)
 
+** 3D Animation **
+![alt text](assets/Three_js.gif)
+
+** Tabbed UI **
+![alt text](assets/TabbedUI.gif)
 
 ## 🛠️Development Guide
 ### Component Structure
