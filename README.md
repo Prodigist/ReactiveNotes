@@ -354,16 +354,16 @@ const NetworkGraph = () => {
 ````
 ![alt text](assets/graphVis.gif)
 ### Other Demonstrated Examples
-** Simulator ** (Use within reason for performance)
+**Simulator** (Use within reason for performance)
 ![alt text](assets/Simulator.gif)
 
-** File Upload **
+**File Upload**
 ![alt text](assets/FileUpload.gif)
 
-** 3D Animation **
+**3D Animation**
 ![alt text](assets/Three_js.gif)
 
-** Tabbed UI **
+**Tabbed UI**
 ![alt text](assets/TabbedUI.gif)
 
 ## 🛠️Development Guide
