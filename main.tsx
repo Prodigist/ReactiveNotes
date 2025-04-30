@@ -3,19 +3,13 @@ import { createRoot } from 'react-dom/client';
 import { transform } from '@babel/standalone';
 import * as React from 'react';
 import postcss from 'postcss';
-import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 import { StorageManager } from 'src/core/storage';
 import { useStorage } from 'src/hooks/useStorage';
 import { ComponentRegistry } from 'src/components/componentRegistry';
 import { ErrorBoundary } from 'src/components/ErrorBoundary';
 
-//Optional niche market analysis tools
-import { useMarketData } from 'src/core/useMarketData';
-import { createMarketDataHook } from 'src/core/useMarketData';
-import { MarketDataService } from 'src/services/marketDataService';
-import { OrderBlockAnalysisService } from 'src/services/OrderBlockAnalysis';
-import { MarketDataStorage } from 'src/services/marketDataStorage';
+
 
 class ReactComponentChild extends MarkdownRenderChild {
     private root: ReturnType<typeof createRoot>;
@@ -25,6 +19,7 @@ class ReactComponentChild extends MarkdownRenderChild {
     private noteFile: TFile;
     private ctx: MarkdownPostProcessorContext;
     private app: App;
+    
 
     constructor(containerEl: HTMLElement, plugin: Plugin, ctx: MarkdownPostProcessorContext) {
         super(containerEl);
@@ -34,15 +29,25 @@ class ReactComponentChild extends MarkdownRenderChild {
         this.app = plugin.app; // Get app from plugin
         // Get the source file from context
         if (ctx.sourcePath) {
-            this.noteFile = plugin.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
+            const abstractFile = plugin.app.vault.getAbstractFileByPath(ctx.sourcePath);
+            if (abstractFile instanceof TFile) {
+                this.noteFile = abstractFile;
+            } else {
+                // Handle the case where it's not a TFile
+                console.warn(`Source path ${ctx.sourcePath} is not a file`);
+                throw new Error(`Cannot initialize component: Source path "${ctx.sourcePath}" is not a file.`);
+            }
         }
         // Add these classes to the container
         containerEl.classList.add('react-component-container');
         if (document.body.hasClass('theme-dark')) {
             containerEl.classList.add('theme-dark');
+            containerEl.classList.add('dark');
         }else {
             containerEl.classList.add('theme-light');
+            containerEl.classList.remove('dark');
         }
+
     }
 
     private async getFrontmatterData<T>(key: string, defaultValue: T): Promise<T> {
@@ -98,6 +103,34 @@ class ReactComponentChild extends MarkdownRenderChild {
             </ErrorBoundary>
         );
     };
+    private needsThree(code: string): boolean {
+                // Check if the code contains any Three.js specific imports or usage
+                // More comprehensive detection of THREE usage
+        const hasThreeImports = /import\s+.*?three['"];?\s*$/gm.test(code) || 
+        /import\s*{\s*[^}]*}\s*from\s*['"]three['"];?\s*$/gm.test(code) ||
+        /import\s+.*?\s+as\s+(\w+)\s+from\s+['"]three['"];?\s*$/gm.test(code);
+
+        // Save any custom import name from "import * as CustomName from 'three'"
+        const threeAliasMatch = code.match(/import\s+\*\s+as\s+(\w+)\s+from\s+['"]three['"];?\s*$/m);
+        const threeAlias = threeAliasMatch ? threeAliasMatch[1] : null;
+
+        // Check for various THREE usage patterns
+        let hasThreeUsage = /\bTHREE\.|\bnew\s+THREE\.|\bextends\s+THREE\./.test(code) || // Direct THREE usage
+        /\bUtilities\.THREE\.|\bnew\s+Utilities\.THREE\./.test(code) || // Utilities.THREE usage
+        /\bComponentRegistry\.Utilities\.THREE\./.test(code); // Full path usage
+
+        // If there's a custom alias, check for that too
+        if (threeAlias) {
+        hasThreeUsage = hasThreeUsage || new RegExp(`\\b${threeAlias}\\.`).test(code);
+        }
+
+        // Also check for common THREE classes even without the THREE prefix
+        const commonThreeClasses = /\b(Scene|PerspectiveCamera|WebGLRenderer|Vector3|BoxGeometry|MeshBasicMaterial|Mesh|Object3D|Group|AmbientLight|DirectionalLight)\b/.test(code);
+
+        // Combined check
+        return hasThreeImports || hasThreeUsage || commonThreeClasses;
+    }
+
     private preprocessCode(code: string): string {
 
         // Replace CDN imports with script loading
@@ -143,8 +176,8 @@ class ReactComponentChild extends MarkdownRenderChild {
      `;
 
         // Find the component name
-        const componentMatch = code.match(/(?:const|function|class)\s+(\w+)\s*=\s*(?:(?:\([^)]*\)|)\s*=>|function\s*\(|React\.memo\(|React\.forwardRef\(|class\s+extends\s+React\.Component)/);
-        const componentName = componentMatch ? componentMatch[1] : 'EmptyComponent';
+        const componentMatch = code.match(/(?:function\s+(\w+)|(?:const|class)\s+(\w+)\s*=\s*(?:(?:\([^)]*\)|)\s*=>|function\s*\(|React\.memo\(|React\.forwardRef\(|class\s+extends\s+React\.Component))/);
+        const componentName = componentMatch ?  (componentMatch[1] || componentMatch[2]) : 'EmptyComponent';
         console.log('Found component:', componentName); // Debug info
         if (!componentMatch) {
             throw new Error('No React component found');
@@ -181,20 +214,51 @@ class ReactComponentChild extends MarkdownRenderChild {
         `;
     }
 
+    // Helper to get THREE.js directly
+private getThreeJs() {
+    // Check if THREE exists in window
+    if (typeof window !== 'undefined' && 'THREE' in window) {
+        return window.THREE;
+    }
+    
+    // Fall back to require - only execute if needed
+    try {
+        return require('three');
+    } catch (error) {
+        console.warn('Failed to load THREE.js:', error);
+        return undefined;
+    }
+}
+
     async render(code: string) {
         console.time('component-render');
         try {
+
+                // Add container classes for styling isolation
+    this.containerEl.classList.add('react-component-container');
+    
+    // Apply theme class for dark mode
+    /*
+    if (document.body.classList.contains('theme-dark')) {
+      this.containerEl.classList.add('dark');
+    } else {
+      this.containerEl.classList.remove('dark');
+    }*/
+
             //console.log('Original code:', code);
             console.time('preprocess');
             // Preprocess code
+            const needsThree=this.needsThree(code);
             const processedCode = this.preprocessCode(code);
             //console.log('Processed code:', processedCode);
             console.timeEnd('preprocess');
 
             console.time('tailwind');
             // Process Tailwind
+            //Could potentially generate tailwind css based on specific user code using build:css script defined in config
+            // This would let it work with any user defined tailwind classes
             //await this.processTailwind(processedCode);
-            console.timeEnd('tailwind');
+            //console.timeEnd('tailwind');
 
             console.time('babel');
             const isTypeScript = code.includes(':') || code.includes('interface') || code.includes('<');
@@ -235,15 +299,10 @@ class ReactComponentChild extends MarkdownRenderChild {
                 return [value, updateValue] as const;
             };
             // Create scoped market data hook
-            const useMarketData = createMarketDataHook(this.storage, this.noteFile);
             // Create scope with all required dependencies
             const scope = {
                 ...ComponentRegistry,
                 useStorage: boundUseStorage,
-                useMarketData,
-                MarketDataStorage,
-                OrderBlockAnalysisService,
-                MarketDataService,
                 getTheme: () => document.body.hasClass('theme-dark') ? 'dark' : 'light',
                 // Add note context
                 noteContext: {
@@ -260,6 +319,8 @@ class ReactComponentChild extends MarkdownRenderChild {
                         color: document.body.hasClass('theme-dark') ? '#ffffff' : '#000000'
                     }
                 }),
+                //lazy load THREE if needed
+                ...needsThree ? this.getThreeJs() : undefined,
             };
 
             // Execute the code and get the component
@@ -282,6 +343,7 @@ class ReactComponentChild extends MarkdownRenderChild {
     }
 
     onunload() {
+   
         this.root.unmount();
     }
 
@@ -305,10 +367,26 @@ class ReactComponentChild extends MarkdownRenderChild {
 }
 
 export default class ReactNotesPlugin extends Plugin {
+    private tailwindStyles: HTMLStyleElement | null = null; // Tailwind styles reference
     async onload() {
+  try {
+    // Read the CSS file using Obsidian's API
+    const css = await this.app.vault.adapter.read(`${this.manifest.dir}/outStyles.css`);
+    
+    // Inject the CSS
+    const style = document.createElement('style');
+    style.id = 'tailwind-styles';
+    style.textContent = css;
+    document.head.appendChild(style);
+    this.tailwindStyles = style;
+  } catch (error) {
+    console.error("Failed to load CSS file:", error);
+  }
         // Listen for theme changes
         this.registerEvent(
-            this.app.workspace.on('css-change', this.updateTheme)
+            this.app.workspace.on('css-change', () => {
+                this.updateTheme();
+              })
         );
         // Register markdown processor
         this.registerMarkdownCodeBlockProcessor(
@@ -326,14 +404,23 @@ export default class ReactNotesPlugin extends Plugin {
                 // Initial theme setup
                 this.updateTheme();
     }
+
+    onunload() {
+          // Clean up styles
+  if (this.tailwindStyles) {
+    this.tailwindStyles.remove();
+  }
+    }
     private updateTheme = () => {
         // Update theme class on all react component containers
         document.querySelectorAll('.react-component-container').forEach(el => {
             if (document.body.hasClass('theme-dark')) {
                 el.classList.add('theme-dark');
+                el.classList.add('dark');
                 el.classList.remove('theme-light');
             } else {
                 el.classList.add('theme-light');
+                el.classList.remove('dark');
                 el.classList.remove('theme-dark');
             }
         });
@@ -349,11 +436,25 @@ export default class ReactNotesPlugin extends Plugin {
 
             // Render Markdown for the inner content of each block
             await MarkdownRenderer.renderMarkdown(
-                block.innerHTML, // Raw HTML content
+                block.textContent || "", // // Get text content
                 block,           // Target container for rendered Markdown
                 '',              // Path (optional, current file path if needed)
                 this             // Plugin context
             );
+            /*
+            // Alternative if more control is needed:
+// Create a temporary div to safely extract text
+const tempDiv = document.createElement('div');
+tempDiv.appendChild(block.cloneNode(true));
+const safeContent = tempDiv.textContent || "";
+
+await MarkdownRenderer.renderMarkdown(
+    safeContent,
+    block,
+    '',
+    this
+);
+*/
 
             // After rendering, mark the block to avoid double processing
             block.classList.add('markdown-rendered');
