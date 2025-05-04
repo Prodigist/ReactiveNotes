@@ -1,4 +1,4 @@
-import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer, TFile, App, stringifyYaml } from 'obsidian';
+import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer, TFile, App, stringifyYaml, Notice } from 'obsidian';
 import { createRoot } from 'react-dom/client';
 import { transform } from '@babel/standalone';
 import * as React from 'react';
@@ -8,7 +8,6 @@ import { StorageManager } from 'src/core/storage';
 import { useStorage } from 'src/hooks/useStorage';
 import { ComponentRegistry } from 'src/components/componentRegistry';
 import { ErrorBoundary } from 'src/components/ErrorBoundary';
-
 
 
 class ReactComponentChild extends MarkdownRenderChild {
@@ -61,29 +60,21 @@ class ReactComponentChild extends MarkdownRenderChild {
     private async updateFrontmatterData<T>(key: string, value: T): Promise<void> {
         if (!this.noteFile) return;
 
-        const content = await this.app.vault.read(this.noteFile);
-        const cache = this.app.metadataCache.getFileCache(this.noteFile);
-        const frontmatter = cache?.frontmatter || {};
-
-        const newFrontmatter = {
-            ...frontmatter,
-            react_data: {
-                ...(frontmatter.react_data || {}),
-                [key]: value
-            }
-        };
-
-        const yamlRegex = /^---\n([\s\S]*?)\n---/;
-        const yamlMatch = content.match(yamlRegex);
-
-        let newContent;
-        if (yamlMatch) {
-            newContent = content.replace(yamlRegex, `---\n${stringifyYaml(newFrontmatter)}---`);
-        } else {
-            newContent = `---\n${stringifyYaml(newFrontmatter)}---\n\n${content}`;
+        try {
+            await this.app.fileManager.processFrontMatter(this.noteFile, (frontmatter) => {
+                // Initialize react_data section if it doesn't exist
+                if (!frontmatter.react_data) {
+                    frontmatter.react_data = {};
+                }
+                
+                // Update the specific key
+                frontmatter.react_data[key] = value;
+            });
+        } catch (error) {
+            console.error(`Failed to update frontmatter for key "${key}":`, error);
+            new Notice(`Failed to save component state: ${error.message}`);
+            throw error;
         }
-
-        await this.app.vault.modify(this.noteFile, newContent);
     }
 
     // Add wrapper component for error boundary
@@ -298,7 +289,6 @@ private getThreeJs() {
 
                 return [value, updateValue] as const;
             };
-            // Create scoped market data hook
             // Create scope with all required dependencies
             const scope = {
                 ...ComponentRegistry,
@@ -371,6 +361,8 @@ export default class ReactNotesPlugin extends Plugin {
     async onload() {
   try {
     // Read the CSS file using Obsidian's API
+    // - only left here for development purposes,
+    // Users wont have this in production, we may use the build:css script to generate and add the css file in future
     const css = await this.app.vault.adapter.read(`${this.manifest.dir}/outStyles.css`);
     
     // Inject the CSS
@@ -435,7 +427,8 @@ export default class ReactNotesPlugin extends Plugin {
             if (block.querySelector('.markdown-rendered')) continue;
 
             // Render Markdown for the inner content of each block
-            await MarkdownRenderer.renderMarkdown(
+            await MarkdownRenderer.render(
+                this.app,
                 block.textContent || "", // // Get text content
                 block,           // Target container for rendered Markdown
                 '',              // Path (optional, current file path if needed)
@@ -448,7 +441,8 @@ const tempDiv = document.createElement('div');
 tempDiv.appendChild(block.cloneNode(true));
 const safeContent = tempDiv.textContent || "";
 
-await MarkdownRenderer.renderMarkdown(
+await MarkdownRenderer.render(
+this.app,
     safeContent,
     block,
     '',

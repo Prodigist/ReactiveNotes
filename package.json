@@ -1,7 +1,7 @@
 {
 	"name": "reactive-notes",
 	"version": "1.0.0",
-	"description": "Transform your Obsidian vault into a reactive computational environment with React components.",
+	"description": "Transform your vault into a reactive computational environment with React components.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
