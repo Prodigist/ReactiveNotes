@@ -3,7 +3,7 @@
 	"name": "Reactive Notes",
 	"version": "1.0.0",
 	"minAppVersion": "1.4.0",
-	"description": "Transform your Obsidian vault into a reactive computational environment. Create dynamic React components directly in your notes.",
+	"description": "Transform your vault into a reactive computational environment. Create dynamic React components directly in your notes.",
 	"author": "Elias Noesis",
 	"authorUrl": "https://github.com/Prodigist",
 	"isDesktopOnly": false,

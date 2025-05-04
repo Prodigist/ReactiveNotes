@@ -1,23 +1,26 @@
 // src/config/componentRegistry.ts
+//Can be modified to add more components and libraries
 import React from 'react';
 import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
     ComposedChart, BarChart, XAxis, YAxis, Bar, Line, Area,
-    ReferenceLine, LineChart
+    ReferenceLine, LineChart, CartesianGrid, Treemap,
 } from 'recharts';
 import { createChart } from 'lightweight-charts';
 import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force';
-import { ForceGraph2D, ForceGraph3D } from 'react-force-graph';
-import * as d3 from 'd3';
 import {
-    Upload, Activity, AlertCircle, TrendingUp, TrendingDown,
-    // Add other icons as needed
+    Upload, Activity, AlertCircle, TrendingUp, TrendingDown, Home, BarChart2, BarChart3, Code, Settings, Moon, Sun, ChevronLeft, ChevronRight, Heart, ExternalLink,
+    Play, Image as ImageIcon, Check, X, Plus, Minus, ArrowRightCircle, ArrowLeftCircle, ArrowUpCircle, ArrowDownCircle,
+    ChevronUp, ChevronDown, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, PlusCircle, MinusCircle, XCircle, CheckCircle,
+    Info, Search, Trash, Edit, Save, Share, Copy, Pause, Undo, Redo, ZoomIn, ZoomOut, PlayCircle, PauseCircle,
 } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import {
-    Card, CardHeader, CardTitle, CardContent,
+    Card, CardHeader, CardTitle, CardContent, CardFooter,
     Tabs, TabsContent, TabsList, TabsTrigger,
-    Switch,
+    Switch, CardDescription,
 } from 'src/components/ui/';
+
 
 // Core React hooks wrapper
 // Type for React utilities (non-component exports)
@@ -48,12 +51,16 @@ export const Components = {
     Area,
     ReferenceLine,
     LineChart,
+    CartesianGrid,
+    Treemap,
     
     // UI Components
     Card,
     CardHeader,
     CardTitle,
     CardContent,
+    CardFooter,
+    CardDescription,
     Tabs,
     TabsContent,
     TabsList,
@@ -61,15 +68,27 @@ export const Components = {
     Switch,
 
     // Icons
+    
     Upload,
     Activity,
     AlertCircle,
     TrendingUp,
     TrendingDown,
-
-    d3
-    
+    Home,
+    BarChart3,
+    Code,
+    Settings,
+    Moon,
+    Sun,
+    ChevronLeft,
+    ChevronRight,
+    Heart,
+    ExternalLink, BarChart2,
+    Play, ImageIcon, Check, X, Plus, Minus, ArrowRightCircle, ArrowLeftCircle, ArrowUpCircle, ArrowDownCircle,
+    ChevronUp, ChevronDown, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, PlusCircle, MinusCircle, XCircle, CheckCircle,
+    Info, Search, Trash, Edit, Save, Share, Copy, Pause, Undo, Redo, ZoomIn, ZoomOut, PlayCircle, PauseCircle,
 } as const;
+
 
 // Utilities that aren't React components
 export const Utilities = {
@@ -78,7 +97,6 @@ export const Utilities = {
     forceLink,
     forceManyBody,
     forceCenter,
-    THREE: (window as any).THREE || require('three'), // Use global THREE if available
 } as const;
 
 
@@ -92,7 +110,7 @@ export const ComponentRegistry = {
 
 
 
-// Optional: Type guard for checking if a component exists
+// Optional Type guard for checking if a component exists
 export const hasComponent = (name: string): name is keyof typeof ComponentRegistry => {
     return name in ComponentRegistry;
 };
@@ -128,7 +146,7 @@ export function getComponent<K extends keyof ComponentsOnly>(name: K): Component
     return Components[name];
 }
 
-// Optional: Type-safe hook usage
+// Optional Type-safe hook usage
 type Hook<T> = (...args: any[]) => T;
 export const getHook = <T>(name: keyof typeof ReactUtils): Hook<T> | undefined => {
     const hook = ReactUtils[name];
