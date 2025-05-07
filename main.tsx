@@ -10,6 +10,7 @@ import { ComponentRegistry } from 'src/components/componentRegistry';
 import { ErrorBoundary } from 'src/components/ErrorBoundary';
 
 
+
 class ReactComponentChild extends MarkdownRenderChild {
     private root: ReturnType<typeof createRoot>;
     private storage: StorageManager;
@@ -40,10 +41,10 @@ class ReactComponentChild extends MarkdownRenderChild {
         // Add these classes to the container
         containerEl.classList.add('react-component-container');
         if (document.body.hasClass('theme-dark')) {
-            containerEl.classList.add('theme-dark');
+           // containerEl.classList.add('theme-dark');
             containerEl.classList.add('dark');
         }else {
-            containerEl.classList.add('theme-light');
+        //    containerEl.classList.add('theme-light');
             containerEl.classList.remove('dark');
         }
 
@@ -391,7 +392,9 @@ export default class ReactNotesPlugin extends Plugin {
         );
         // Register a global Markdown postprocessor for HTML
         this.registerMarkdownPostProcessor((element, context) => {
-            this.parseMarkdownInHtml(element);
+    if (element.closest('.react-component-container')) {
+        this.parseMarkdownInHtml(element);
+    }
         });
                 // Initial theme setup
                 this.updateTheme();
@@ -419,8 +422,8 @@ export default class ReactNotesPlugin extends Plugin {
     };
     private async parseMarkdownInHtml(container: HTMLElement) {
         // Query all divs or specific HTML blocks you want to process
-        const htmlBlocks = Array.from(container.querySelectorAll('div')) as HTMLDivElement[];
-
+        const htmlBlocks = Array.from(container.querySelectorAll('div:not(.markdown-rendered)')) as HTMLDivElement[];
+        //console.log('Processing HTML container:', container);
         // Iterate over each div block
         for (const block of htmlBlocks) {
             // Check if it already contains rendered Markdown (to avoid double processing)
@@ -441,7 +444,7 @@ const tempDiv = document.createElement('div');
 tempDiv.appendChild(block.cloneNode(true));
 const safeContent = tempDiv.textContent || "";
 
-await MarkdownRenderer.render(
+await MarkdownRenderer.renderMarkdown(
 this.app,
     safeContent,
     block,
