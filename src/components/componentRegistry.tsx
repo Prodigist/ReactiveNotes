@@ -5,6 +5,10 @@ import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
     ComposedChart, BarChart, XAxis, YAxis, Bar, Line, Area,
     ReferenceLine, LineChart, CartesianGrid, Treemap,
+    ScatterChart, Scatter, // For plotting points
+RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, // For radar charts
+AreaChart, // Dedicated area chart
+RadialBarChart, RadialBar, // For radial/circular progress
 } from 'recharts';
 import { createChart } from 'lightweight-charts';
 import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force';
@@ -20,6 +24,12 @@ import {
     Tabs, TabsContent, TabsList, TabsTrigger,
     Switch, CardDescription,
 } from 'src/components/ui/';
+
+//Data Processing Libraries
+import { format, addDays, differenceInDays, parseISO } from 'date-fns';
+import { parse, stringify } from 'csv/sync';
+import * as mathjs from 'mathjs';
+
 
 
 // Core React hooks wrapper
@@ -52,7 +62,11 @@ export const Components = {
     ReferenceLine,
     LineChart,
     CartesianGrid,
-    Treemap,
+    Treemap, ScatterChart, Scatter,
+
+RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+AreaChart, 
+RadialBarChart, RadialBar,
     
     // UI Components
     Card,
@@ -87,6 +101,11 @@ export const Components = {
     Play, ImageIcon, Check, X, Plus, Minus, ArrowRightCircle, ArrowLeftCircle, ArrowUpCircle, ArrowDownCircle,
     ChevronUp, ChevronDown, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, PlusCircle, MinusCircle, XCircle, CheckCircle,
     Info, Search, Trash, Edit, Save, Share, Copy, Pause, Undo, Redo, ZoomIn, ZoomOut, PlayCircle, PauseCircle,
+
+        //data processing utilities
+        dateFns: { format, addDays, differenceInDays, parseISO },
+        csv: { parse, stringify },
+        math: mathjs,
 } as const;
 
 
