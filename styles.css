@@ -86,14 +86,6 @@
     white-space: pre-wrap;
     word-break: break-word;
 }
-
-.react-component-container svg {
-    display: inline-block !important;
-    vertical-align: middle !important;
-    height: 16px !important;
-    width: 16px !important;
-    margin-right: 4px !important;
-  }
 /*
 
 This CSS file will be included with your plugin, and
