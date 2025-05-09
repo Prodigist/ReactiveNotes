@@ -1,4 +1,4 @@
-import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer, TFile, App, stringifyYaml, Notice } from 'obsidian';
+import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer, TFile, App, stringifyYaml, Notice, SuggestModal } from 'obsidian';
 import { createRoot } from 'react-dom/client';
 import { transform } from '@babel/standalone';
 import * as React from 'react';
@@ -312,7 +312,100 @@ private getThreeJs() {
                 }),
                 //lazy load THREE if needed
                 ...needsThree ? this.getThreeJs() : undefined,
-            };
+readFile: async (path=null, extensions = ['txt', 'md', 'json','csv']) => {
+    return new Promise((resolve) => {
+        let isResolved = false;
+        let cancelTimeoutHandle: number | undefined = undefined; // To store timeout handle for cancellation
+        // Create a SuggestModal subclass that lists vault files
+  
+          // If a specific path is provided, read that file directly without showing modal
+    if (path) {
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (file && file instanceof TFile) {
+          this.app.vault.cachedRead(file).then(content => {
+            isResolved = true;
+            resolve({
+              path: file.path,
+              name: file.name,
+              content: content
+            });
+          }).catch(err => {
+            console.error("Failed to read file:", err);
+            isResolved = true;
+            resolve(null);
+          });
+        } else {
+          console.error("File not found:", path);
+          isResolved = true;
+          resolve(null);
+        }
+        return;
+      }
+        class FileSuggestModal extends SuggestModal<TFile> {
+          getSuggestions(query:string) {
+            // Get all files with the right extension
+            const files =  this.app.vault.getFiles()
+              .filter(file => extensions.includes(file.extension));
+              
+            // Filter by query if provided
+            if (query) {
+              return files.filter(file => 
+                file.path.toLowerCase().includes(query.toLowerCase())
+              );
+            }
+            return files;
+          }
+          
+          renderSuggestion(file:TFile, el: HTMLElement) {
+            el.createEl("div", { text: file.name });
+            el.createEl("small", { text: file.path });
+          }
+          
+          onChooseSuggestion(file:TFile, evt: MouseEvent|KeyboardEvent) {
+            console.log("File content:");
+            if (cancelTimeoutHandle !== undefined) {
+                clearTimeout(cancelTimeoutHandle);
+                cancelTimeoutHandle = undefined;
+            }
+            this.app.vault.cachedRead(file).then(content => {isResolved = true; 
+                resolve({
+              path: file.path,
+              name: file.basename,
+              extension: file.extension,
+              content: content
+            });
+          }).catch(err => {
+              console.error("Failed to read file:", err);
+              resolve(null);});}
+        }
+        
+        // Show the modal
+        const modal = new FileSuggestModal(this.app);
+        modal.setPlaceholder("Select a file");
+        modal.onClose = () => {
+            // If onClose is called, and a suggestion hasn't ALREADY been chosen and processed,
+            // this implies a cancellation or an edge case where onClose fires very quickly.
+            // We use a setTimeout to yield to the event loop, giving onChooseSuggestion
+            // a chance to run if it was triggered by the same user action that closed the modal.
+            if (cancelTimeoutHandle !== undefined) { // Clear previous timeout if any (e.g. rapid open/close)
+                clearTimeout(cancelTimeoutHandle);
+            }
+            cancelTimeoutHandle = window.setTimeout(() => { // window.setTimeout for NodeJS.Timeout type
+                // After yielding, if the promise hasn't been resolved by onChooseSuggestion
+                // and a suggestion wasn't flagged as chosen, then resolve as null (cancellation).
+                if (!isResolved) {
+                    resolve(null);
+                }
+                // If suggestionChosen IS true here, it means onChooseSuggestion ran,
+                // set the flag, and it's responsible for resolving (or has already).
+                // If promiseResolved IS true, it's already handled.
+            }, 0); // Yield to the event loop.
+        };
+        modal.open();
+        
+      });
+    }
+              };
 
             // Execute the code and get the component
             const Component = await new Function(
@@ -392,6 +485,7 @@ export default class ReactNotesPlugin extends Plugin {
         );
         // Register a global Markdown postprocessor for HTML
         this.registerMarkdownPostProcessor((element, context) => {
+                // Only process elements that are within ReactiveNotes components
     if (element.closest('.react-component-container')) {
         this.parseMarkdownInHtml(element);
     }

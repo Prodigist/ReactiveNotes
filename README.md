@@ -20,13 +20,6 @@ Transform your Obsidian vault into a reactive computational environment. Reactiv
 
 - Obsidian v1.4.0 or higher
 - React v18.2.0
-- Libraries:
-  - Recharts v2.10.0
-  - Lightweight Charts v4.1.0
-  - d3-force v3.0.0
-  - lucide-react v0.263.1
-  - shadcn/ui (latest components)
-
 
 
 ## 🚀 Quick Start
@@ -109,46 +102,31 @@ export default MyComponent;
 
 
 
-## 📚  Built-in Libraries & Components
+## 📚  Available Libraries & Components
 
-### React Core & Hooks
-```javascript
-import React, { useState, useEffect, useRef, useMemo } from react';
-```
-### UI Components from shadcn/ui
-```javascript
-import { 
-    Card, CardHeader, CardTitle, CardContent,
-    Tabs, TabsList, TabsTrigger,
-    Button, Dialog, Form
-} from '@/components/ui';
-```
-### Visualization Libraries
-```javascript
-//Include Responsive containers
-// Recharts for data visualization
-import { 
-    LineChart, BarChart, PieChart,
-    Line, Bar, Pie, 
-    Tooltip, Legend 
-} from 'recharts';
+ReactiveNotes provides access to popular libraries and components directly in your notes:
+### Core Libraries
+```jsx
+// React and hooks
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
-// Lightweight Charts for financial charts
+// Data visualization 
+import { LineChart, BarChart, PieChart } from 'recharts';
 import { createChart } from 'lightweight-charts';
 
-// D3-force for network graphs
-import { 
-    forceSimulation, 
-    forceLink 
-} from 'd3-force';
+// Data processing
+import Papa from 'papaparse';  // CSV parsing
+import * as XLSX from 'xlsx';  // Excel files
+import * as mathjs from 'mathjs'; // Mathematics
+import { format, parseISO } from 'date-fns'; // Date handling
+
+// Interface components
+import { Card, Tabs, Switch } from '@/components/ui';
+import { TrendingUp, Activity, Settings } from 'lucide-react'; // 70+ icons
 ```
-### Icons
-```javascript
-import { 
-    Upload, Activity, AlertCircle,
-    TrendingUp, TrendingDown 
-} from 'lucide-react';
-```
+See the full [component reference](./COMPONENTS.md) for a complete list of available libraries, components and utilities.
+Even if needed libraries are not provided within this list CDN imports are always an option.
+
 ## 💻 Core Features
 
 ### 1. Component Systems
@@ -161,21 +139,20 @@ import {
 - Real-time component updates
 - Error reporting
 
-### 3. Canvas Manipulation
-- Direct canvas access for custom drawing
-- Real-time canvas updates
-- Image processing capabilities
-- Custom overlays and annotations
-- Interactive drawing tools
+### 2. Canvas Manipulation
+- HTML Canvas API support for custom drawing
+- THREE.js integration for 3D graphics
+- Lightweight Charts for financial visualization
+- D3 force layout integration for network graphs
+- Support for both 2D and 3D rendering contexts
 
 
-
-### 5. Performance
+### 3. Performance
 - Efficient re-rendering
-- Memory leak prevention
+- Proper cleanup of resources in useEffect hooks
 - Lazy loading support
 
-### 2. State Management
+### 4. State Management
 ```javascript
 // Local state with React
 const [local, setLocal] = useState(0);
@@ -189,7 +166,7 @@ const [stored, setStored] = useStorage('key', defaultValue);
 - Cross-note state management
 
 ### Note-Specific Data Persistence
-- Each note maintains independent state through frontmatter
+- Each note maintains independent state through frontmatter storage under a key called react_data
 - Component states persist across sessions
 - Data automatically travels with notes when shared
 - Multiple instances of same component can have different states
@@ -210,19 +187,97 @@ const Counter = () => {
     return <button onClick={() => setCount2(count2 + 1)}>Count: {count2}</button>;
 };
 ```
+#### Browser LocalStorage
 
-### 3. File System Integration
+For components that need to share state across notes or maintain state independent of specific notes, browser localStorage is available.
+
 ```javascript
-// Read files with encoding
-const text = await window.fs.readFile('data.txt', { 
-    encoding: 'utf8' 
-});
+// Create a localStorage hook
+const useLocalStorage = (key, defaultValue) => {
+  const [state, setState] = useState(() => {
+    try {
+      const storedValue = localStorage.getItem(key);
+      return storedValue ? JSON.parse(storedValue) : defaultValue;
+    } catch (error) {
+      console.error(`Error reading localStorage key "${key}":`, error);
+      return defaultValue;
+    }
+  });
 
-// Read binary files
-const binary = await window.fs.readFile('data.xlsx');
+  useEffect(() => {
+    localStorage.setItem(key, JSON.stringify(state));
+  }, [key, state]);
+
+  return [state, setState];
+};
+
+// Use it in components
+const [value, setValue] = useLocalStorage('shared-key', defaultValue);
+//This key is shared across all notes
 ```
 
-### 4. CDN Library Support
+Key features:
+- Data persists across browser sessions
+- Shared state across all notes
+- Independent of note content
+- Approximately 5-10MB storage per domain
+- Persists until browser data is cleared
+
+### 5. File Reading Utility
+
+The plugin provides a flexible file reading utility through the `readFile` function that helps you interactively select and read files from your vault.
+```javascript
+const fileData = await readFile( path,extensions);
+```
+### Parameters
+- `path` (optional): Direct path to a specific file. If provided, skips the file selector. Default: `null`
+- `extensions` (optional): Array of file extensions to filter by. Default: `['txt', 'md', 'json', 'csv']`
+
+### Return Value
+
+Returns a Promise that resolves to an object containing:
+
+- `path`: Full file path
+- `name`: File name without extension
+- `extension`: File extension
+- `content`: String content of the file
+
+Returns `null` if the operation is canceled or fails, allowing you to handle this case gracefully.
+
+```javascript
+// Interactive file selection with file type filtering
+const textFile = await readFile(null,['txt', 'md']);
+if (textFile) {
+    console.log(`Selected: ${textFile.name}`);
+    console.log(`Content: ${textFile.content}`);
+}
+
+// Direct file access by path (no modal)
+const jsonFile = await readFile('path/to/config.json');
+if (jsonFile) {
+    const config = JSON.parse(jsonFile.content);
+}
+
+// Read CSV files
+const csvFile = await readFile(null,['csv']);
+if (csvFile) {
+    // Process CSV content
+    const lines = csvFile.content.split('\n');
+    const headers = lines[0].split(',');
+    // ...
+}
+
+// Read binary files like Excel spreadsheets
+const excelFile = await readFile(null,['xlsx', 'xls']);
+if (excelFile) {
+    // excelFile.content contains the file data
+    // Process with SheetJS or other libraries
+}
+```
+This utility is particularly useful for components that need to process files from your vault, such as data visualizations, document analysis, and custom importers.
+
+
+### 6. CDN Library Support
 Import additional libraries from cdnjs:
 ```javascript
 import Chart from 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
@@ -233,23 +288,17 @@ Requirements:
 - Imports at component top
 - Browser-compatible libraries only
 
-### 5. Theme Integration
+### 7. Theme Integration
 ```javascript
-const theme = getTheme(); // Returns 'dark' or 'light'
+const theme = getTheme(); // Returns 'dark' or 'light' correspodning to obsidian theme
 
 const styles = {
     background: theme === 'dark' ? 'var(--background-primary)' : 'white',
     color: theme === 'dark' ? 'var(--text-normal)' : 'black'
 };
+// Or use 'dark:' within your components
 ```
 
-
-### File System Access
-```javascript
-// Read files
-const csv = await window.fs.readFile('data.csv', { encoding: 'utf8' });
-const binary = await window.fs.readFile('data.xlsx');
-```
 
 ## 🎨 Component Examples
 
@@ -365,6 +414,17 @@ const NetworkGraph = () => {
 
 **Tabbed UI**
 ![alt text](assets/TabbedUI.gif)
+
+**Progression Dashboard**
+
+Knowledge progression dashboard using persistant storage and ability to make new notes/categories
+![alt text](assets/ProgressionDashboard.gif)
+
+**Integrated use case with MCP**
+
+ MCP fetches data from youtube and uses Reactive Notes to display react component for visualising fetched data.
+
+![alt text](assets/IntegratedUsage.gif)
 
 ## 🛠️Development Guide
 ### Component Structure
@@ -515,8 +575,8 @@ Best practices for optimal performance:
 1. **File System**
    ```javascript
    // File operations
-   await window.fs.readFile(path, options);
-   const text = await window.fs.readFile(path, { encoding: 'utf8' });
+   let file = await readFile(path, extensions);
+   let content=file.content;
    ```
 
 2. **Theme Management**
