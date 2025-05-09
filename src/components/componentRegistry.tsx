@@ -1,5 +1,4 @@
-// src/config/componentRegistry.ts
-//Can be modified to add more components and libraries
+// src/config/componentRegistry.tsx
 import React from 'react';
 import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -29,8 +28,8 @@ import {
 import { format, addDays, differenceInDays, parseISO } from 'date-fns';
 import { parse, stringify } from 'csv/sync';
 import * as mathjs from 'mathjs';
-
-
+import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 
 // Core React hooks wrapper
 // Type for React utilities (non-component exports)
@@ -106,6 +105,8 @@ RadialBarChart, RadialBar,
         dateFns: { format, addDays, differenceInDays, parseISO },
         csv: { parse, stringify },
         math: mathjs,
+        XLSX,
+        Papa,
 } as const;
 
 
