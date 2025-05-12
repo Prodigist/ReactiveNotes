@@ -19,7 +19,7 @@ class ReactComponentChild extends MarkdownRenderChild {
     private noteFile: TFile;
     private ctx: MarkdownPostProcessorContext;
     private app: App;
-    
+    private processedPaths = new Set<string>();
 
     constructor(containerEl: HTMLElement, plugin: Plugin, ctx: MarkdownPostProcessorContext) {
         super(containerEl);
@@ -50,13 +50,41 @@ class ReactComponentChild extends MarkdownRenderChild {
 
     }
 
-    private async getFrontmatterData<T>(key: string, defaultValue: T): Promise<T> {
-        if (!this.noteFile) return defaultValue;
-
-        const cache = this.app.metadataCache.getFileCache(this.noteFile);
-        const frontmatter = cache?.frontmatter;
-        return frontmatter?.react_data?.[key] ?? defaultValue;
-    }
+    private async getFrontmatter<T>(
+        key: string | null = null,
+        defaultValue: T | null = null,
+        notePath: string | null = null
+      ): Promise<T | Record<string, any> | null> {
+        try {
+          // Get the file - either current note or specified path
+          const file = notePath 
+            ? this.app.vault.getAbstractFileByPath(notePath) 
+            : this.noteFile;
+          
+          if (!file || !(file instanceof TFile)) {
+            console.error(`Invalid file: ${notePath}`);
+            return defaultValue;
+          }
+          
+          const cache = this.app.metadataCache.getFileCache(file);
+          const frontmatter = cache?.frontmatter;
+          
+          if (!frontmatter) {
+            return defaultValue;
+          }
+          
+          // Return specific key if requested
+          if (key) {
+            return frontmatter[key] ?? defaultValue;
+          }
+          
+          // Otherwise return entire frontmatter
+          return frontmatter;
+        } catch (error) {
+          console.error('Error getting frontmatter:', error);
+          return defaultValue;
+        }
+      }
 
     private async updateFrontmatterData<T>(key: string, value: T): Promise<void> {
         if (!this.noteFile) return;
@@ -77,24 +105,63 @@ class ReactComponentChild extends MarkdownRenderChild {
             throw error;
         }
     }
-
-    // Add wrapper component for error boundary
     private RenderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+        React.useEffect(() => {
+            // Capture the original console.error when the component mounts
+            const originalConsoleError = console.error;
+    
+            // Override console.error
+            console.error = (...args: any[]) => {
+                const errorMessage = args[0]?.toString() || '';
+                // Check if the error message is the one we want to suppress
+                if (errorMessage.includes('Objects are not valid as a React child')) {
+                    // Suppress this specific error by not calling the original console.error
+                    return; 
+                }
+                // For all other errors, call the original console.error
+                originalConsoleError.apply(console, args);
+            };
+    
+            // Cleanup function: Restore the original console.error when the component unmounts
+            return () => {
+                console.error = originalConsoleError;
+            };
+        }, []); // Empty dependency array ensures this effect runs only once on mount and cleanup on unmount.
+    
         return (
             <ErrorBoundary
-                fallback={({ error }) => (
-                    <div className="react-component-error">
-                        <p>Error in component:</p>
-                        <pre className="error-message">
-                            {error.message}
-                        </pre>
-                    </div>
-                )}
+                fallback={({ error }) => {
+                    // The ErrorBoundary will catch the error and display a fallback UI.
+                    // The console log for "Objects are not valid as a React child" should have been suppressed.
+                    if (error.message?.includes('Objects are not valid as a React child')) {
+                        const objectMatch = error.message.match(/found: object with keys {([^}]+)}/);
+                        const keys = objectMatch ? objectMatch[1].split(',').map(k => k.trim()) : ['unknown'];
+                        return (
+                            <div style={{ padding: '12px', backgroundColor: 'var(--background-modifier-form-field)', borderRadius: '6px', border: '1px solid var(--background-modifier-border)', fontFamily: 'var(--font-monospace)', margin: '1rem 0' }}>
+                                <div style={{ fontWeight: 'bold', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span>🧩</span> <span>Component Rendered an Object</span>
+                                </div>
+                                <div style={{ fontSize: '0.9em', opacity: 0.8, marginBottom: '4px' }}>A React component attempted to render a plain JavaScript object. Objects need to be mapped to renderable elements.</div>
+                                <div style={{ fontSize: '0.9em', opacity: 0.8 }}>Object keys found:</div>
+                                <ul style={{ margin: '8px 0 0 20px', paddingLeft: '0', listStyleType: 'disc' }}>{keys.map(key => <li key={key} style={{fontSize: '0.85em'}}>{key}</li>)}</ul>
+                            </div>
+                        );
+                    }
+                    // Default error display for other types of errors
+                    return (
+                        <div className="react-component-error" style={{ margin: '1rem 0' }}>
+                            <p style={{color: 'var(--text-error)', fontWeight: 'bold'}}>Error in component:</p>
+                            <pre className="error-message" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', backgroundColor: 'var(--background-secondary-alt)', padding: '8px', borderRadius: '4px', color: 'var(--text-error)'}}>{error.message}</pre>
+                            {error.stack && <details style={{marginTop: '8px'}}><summary style={{cursor: 'pointer', fontSize: '0.9em'}}>Stack Trace</summary><pre style={{fontSize: '0.8em', maxHeight: '150px', overflowY: 'auto', backgroundColor: 'var(--background-secondary)', padding: '8px', borderRadius: '4px', marginTop: '4px'}}>{error.stack}</pre></details>}
+                        </div>
+                    );
+                }}
             >
                 {children}
             </ErrorBoundary>
         );
     };
+
     private needsThree(code: string): boolean {
                 // Check if the code contains any Three.js specific imports or usage
                 // More comprehensive detection of THREE usage
@@ -123,7 +190,7 @@ class ReactComponentChild extends MarkdownRenderChild {
         return hasThreeImports || hasThreeUsage || commonThreeClasses;
     }
 
-    private preprocessCode(code: string): string {
+    private async preprocessCode(code: string): Promise<string> {
 
         // Replace CDN imports with script loading
         code = code.replace(
@@ -138,49 +205,58 @@ class ReactComponentChild extends MarkdownRenderChild {
         code = code.replace(/import\s*\([^)]*\);?\s*$/gm, '');
 
         // Handle both JS/TS exports
-        code = code.replace(/export\s+default\s+/, '');
-        code = code.replace(/export\s+const\s+/, 'const ');
-        code = code.replace(/export\s+function\s+/, 'function ');
-        code = code.replace(/export\s+class\s+/, 'class ');
+        code = code.replace(/export\s+default\s+/gm, '');
+        code = code.replace(/export\s+const\s+/gm, 'const ');
+        code = code.replace(/export\s+function\s+/gm, 'function ');
+        code = code.replace(/export\s+class\s+/gm, 'class ');
         
 
         // Remove type annotations
         //code = code.replace(/:\s*[A-Za-z<>[\]]+/g, '');
         //code = code.replace(/<[A-Za-z,\s]+>/g, '');
-        // Create a HOC wrapper for chart components
-        const chartWrapper = `
-     const withChartContainer = (WrappedComponent) => {
-         return function ChartContainer(props) {
-             const [mounted, setMounted] = React.useState(false);
-             
-             React.useEffect(() => {
-                 const timer = setTimeout(() => setMounted(true), 100);
-                 return () => clearTimeout(timer);
-             }, []);
- 
-             return React.createElement(
-                 'div',
-                 { style: { width: '100%', minHeight: '400px' } },
-                 mounted ? React.createElement(WrappedComponent, props) : null
-             );
-         };
-     };
-     `;
+
 
         // Find the component name
-        const componentMatch = code.match(/(?:function\s+(\w+)|(?:const|class)\s+(\w+)\s*=\s*(?:(?:\([^)]*\)|)\s*=>|function\s*\(|React\.memo\(|React\.forwardRef\(|class\s+extends\s+React\.Component))/);
-        const componentName = componentMatch ?  (componentMatch[1] || componentMatch[2]) : 'EmptyComponent';
-        console.log('Found component:', componentName); // Debug info
-        if (!componentMatch) {
-            throw new Error('No React component found');
-        }
+        const componentMatch = code.match(/^(?![\s]*\/\/).*?(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:(?:\([^)]*\)|)\s*=>|function\s*\(|React\.memo\(|React\.forwardRef\(|class\s+extends\s+React\.Component))/m);
+        const storeMatch = !componentMatch ?  code.match(/(?:const\s+(\w+)\s*=\s*{|class\s+(\w+)\s*{)/) : null;
         
-            // Find component name and rename if it's 'Component'
-    const safeName = componentName === 'WrappedComponent' ? 'UserComponent' : componentName;
+        if (!componentMatch) {
+            // If no component found, look for object literals or other exports
+            if (!storeMatch) {
+                throw new Error('No React component found');
+            }
+        }
+        // Set safeName using either match
+        const componentName = componentMatch 
+        ? (componentMatch[1] || componentMatch[2]) 
+        : (storeMatch ? (storeMatch[1]|| storeMatch[2]) : 'EmptyComponent');
+        console.log('Found component:', componentName);
+        
+            // Find component name and rename if it's 'WrappedComponent'
+        const safeName = componentName === 'WrappedComponent' ? 'UserComponent' : componentName;
     
-    if (componentName === 'WrappedComponent') {
-        code = code.replace(/\bComponent\b/, safeName);
-    }
+        if (componentName === 'WrappedComponent') {
+            code = code.replace(/\bWrappedComponent\b/, safeName);
+        }
+        // Create a HOC wrapper for chart components
+        const chartWrapper = `
+            const withChartContainer = (WrappedComponent) => {
+                return function ChartContainer(props) {
+                    const [mounted, setMounted] = React.useState(false);
+                    
+                    React.useEffect(() => {
+                        const timer = setTimeout(() => setMounted(true), 100);
+                        return () => clearTimeout(timer);
+                    }, []);
+        
+                    return React.createElement(
+                        'div',
+                        { style: { width: '100%', minHeight: '400px' } },
+                        mounted ? React.createElement(WrappedComponent, props) : null
+                    );
+                };
+            };
+        `;
         // Combine everything
     // added Component assignment
     code = `
@@ -189,14 +265,122 @@ class ReactComponentChild extends MarkdownRenderChild {
             const WrappedComponent = (() => {
                 // Add error handling for component existence
                 if (typeof ${safeName} === 'undefined') {
-                    throw new Error(\`Component "${safeName}" was matched but is undefined. Code context: ${code.slice(0, 100)}...\`);
+                    throw new Error(\`Component "${safeName}" was matched but is undefined. Code context: ${code.slice(0, 100).replace(/`/g, '\\`')}...\`);
                 }
-                const isChartComponent = ${safeName}.toString().includes('ResponsiveContainer') || 
+            // Simple check - is it a valid React component?
+        const isValidComponent = (() => {
+            // Class component
+            if (${safeName}.prototype?.isReactComponent) return true;
+            
+            // Function that returns React elements
+            if (typeof ${safeName} === 'function') {
+                try {
+                    const result = ${safeName}({});
+                    return React.isValidElement(result);
+                } catch {
+                    // If it throws, check source code
+                    return ${safeName}.toString().includes('createElement') || 
+                           ${safeName}.toString().includes('<');
+                }
+            }
+            
+            // Direct objects are never valid components
+            return false;
+        })();
+        
+        // If not a valid component, treat as a storage block
+        if (!isValidComponent) {
+            return function StorageBlockWrapper() {
+                // Get the definitions - handle all cases
+                let definitions;
+                
+                if (typeof ${safeName} === 'function') {
+                    try {
+                        // Try as function
+                        definitions = ${safeName}({});
+                    } catch (e) {
+                        try {
+                            // Try as class
+                            definitions = new ${safeName}();
+                        } catch (e2) {
+                            // Last resort
+                            definitions = ${safeName};
+                        }
+                    }
+                } else {
+                    // Already an object (like IIFE or object literal)
+                    definitions = ${safeName};
+                }
+                
+                // Ensure it's an object
+                if (!definitions || typeof definitions !== 'object') {
+                    definitions = { error: "Couldn't extract definitions" };
+                }
+                
+                const keys = Object.keys(definitions);
+                return React.createElement('div', {
+                    style: {
+                        padding: '12px',
+                        backgroundColor: 'var(--background-modifier-form-field)',
+                        borderRadius: '6px',
+                        border: '1px solid var(--background-modifier-border)',
+                        fontFamily: 'var(--font-monospace)'
+                    }
+                }, [
+                    React.createElement('div', {
+                        style: { 
+                            fontWeight: 'bold',
+                            marginBottom: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }
+                    }, [
+                        React.createElement('span', null, '📦'),
+                        React.createElement('span', null, 'Definitions Storage Container:')
+                    ]),
+                        React.createElement('div', {
+                    style: {
+                        padding: '8px',
+                        marginBottom: '12px',
+                        color: 'var(--text-on-accent)',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }
+                }, [
+                    React.createElement('code', {
+                        style: {
+                            padding: '2px 6px',
+                            backgroundColor: 'rgba(255,255,255,0.2)',
+                            borderRadius: '3px',
+                            fontWeight: 'bold'
+                        }
+                    }, '${safeName}')
+                ]),
+                    React.createElement('div', {
+                        style: { fontSize: '0.9em', opacity: 0.8 }
+                    }, 'Exported definitions:'),
+                    React.createElement('ul', {
+                        style: { 
+                            margin: '8px 0',
+                            paddingLeft: '20px'
+                        }
+                    }, keys.map(key => 
+                        React.createElement('li', { key }, 
+                            \`\${key}: \${typeof definitions[key]}\`
+                        )
+                    ))
+                ]);
+            };
+        }
+            const isChartComponent = ${safeName}.toString().includes('ResponsiveContainer') || 
                                        ${safeName}.toString().includes('svg');
-                return isChartComponent ? withChartContainer(${safeName}) : ${safeName};
+            return isChartComponent ? withChartContainer(${safeName}) : ${safeName};
             })();
     `;
-
+     code = await this.processVaultImports(code);
         // Wrap code in async IIFE to allow for await
         return `
             (async () => {
@@ -222,6 +406,80 @@ private getThreeJs() {
     }
 }
 
+private async processVaultImports(code: string, depth = 0): Promise<string> {
+    if (depth > 10) {
+        console.warn('Maximum import depth reached (10)');
+        return code;
+    }
+    const vaultImportRegex = /vaultImport\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*(\d+))?\s*\)/g;
+    
+    // Create a map to track processed imports (avoid duplicates)
+    const processedImports = new Map<string, string>();
+    
+    // Find all vaultImport calls
+    const matches = [...code.matchAll(vaultImportRegex)];
+    
+    for (const match of matches) {
+        const [fullMatch, path, index = '0'] = match;
+        const importKey = `${path}#${index}`;
+        
+        // Skip if already processed
+        if (processedImports.has(importKey)) continue;
+        
+        try {
+            const file = this.app.vault.getAbstractFileByPath(path);
+            if (!file  || !(file instanceof TFile)) continue;
+            
+            const content = await this.app.vault.read(file);
+            const blocks = content.match(/```react\n([\s\S]*?)```/g) || [];
+            
+            if (blocks[parseInt(index)]) {
+                let blockCode = blocks[parseInt(index)]
+                    .replace(/```react\n/, '')
+                    .replace(/```$/, '');
+                
+                // Check for nested imports
+                const importKey = `${path}#${index}`;
+                if (!this.processedPaths.has(importKey)) {
+                    this.processedPaths.add(importKey);
+                    // Recursively process nested imports
+                    blockCode = await this.processVaultImports(blockCode, depth + 1);
+                }
+                blockCode = blockCode.replace(
+                    /import\s+(\w+)\s+from\s+['"]https:\/\/cdnjs\.cloudflare\.com\/([^'"]+)['"]/g,
+                    (match, importName, cdnPath) => `
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/${cdnPath}';
+                        document.body.appendChild(script);`);
+                blockCode = blockCode.replace(/import\s+.*?['"]\s*;?\s*$/gm, '')
+                .replace(/import\s*{[^}]*}\s*from\s*['"][^'"]*['"];?\s*$/gm, '')
+                .replace(/import\s*\([^)]*\);?\s*$/gm, '');
+    
+                // Strip exports
+                blockCode = blockCode
+                .replace(/export\s+default\s+/gm, '')
+                .replace(/export\s+const\s+/gm, 'const ')
+                .replace(/export\s+function\s+/gm, 'function ')
+                .replace(/export\s+class\s+/gm, 'class ')
+                .replace(/export\s+{[^}]*}\s*;?/gm, '')
+
+                
+                const importedCode = `\n// Imported from ${path}#${index}\n${blockCode}\n`;
+                processedImports.set(importKey, importedCode);
+            }
+        } catch (error) {
+            console.error(`Error importing from ${path}:`, error);
+        }
+    }
+    
+    // Append all unique imports
+    const appendedCode = Array.from(processedImports.values()).join('\n');
+    
+    // Remove ALL vaultImport calls in one pass
+    const cleanedCode = code.replace(vaultImportRegex, '');
+    return  appendedCode+cleanedCode;
+}
+
     async render(code: string) {
         console.time('component-render');
         try {
@@ -241,10 +499,10 @@ private getThreeJs() {
             console.time('preprocess');
             // Preprocess code
             const needsThree=this.needsThree(code);
-            const processedCode = this.preprocessCode(code);
-            //console.log('Processed code:', processedCode);
+            const processedCode = await this.preprocessCode(code);
             console.timeEnd('preprocess');
 
+            
             console.time('tailwind');
             // Process Tailwind
             //Could potentially generate tailwind css based on specific user code using build:css script defined in config
@@ -268,14 +526,12 @@ private getThreeJs() {
             }).code;
             console.timeEnd('babel');
             //console.log('Transformed code:', transformedCode);
-
-            // Create bound storage hook
             // Create bound storage hook with frontmatter support
             const boundUseStorage = <T,>(key: string, defaultValue: T) => {
                 const [value, setValue] = React.useState<T>(defaultValue);
 
                 React.useEffect(() => {
-                    this.getFrontmatterData(key, defaultValue).then(setValue);
+                    this.getFrontmatter(key, defaultValue).then(setValue);
                 }, [key]);
 
                 const updateValue = React.useCallback(
@@ -312,99 +568,13 @@ private getThreeJs() {
                 }),
                 //lazy load THREE if needed
                 ...needsThree ? this.getThreeJs() : undefined,
-readFile: async (path=null, extensions = ['txt', 'md', 'json','csv']) => {
-    return new Promise((resolve) => {
-        let isResolved = false;
-        let cancelTimeoutHandle: number | undefined = undefined; // To store timeout handle for cancellation
-        // Create a SuggestModal subclass that lists vault files
-  
-          // If a specific path is provided, read that file directly without showing modal
-    if (path) {
-        const file = this.app.vault.getAbstractFileByPath(path);
-        if (file && file instanceof TFile) {
-          this.app.vault.cachedRead(file).then(content => {
-            isResolved = true;
-            resolve({
-              path: file.path,
-              name: file.name,
-              content: content
-            });
-          }).catch(err => {
-            console.error("Failed to read file:", err);
-            isResolved = true;
-            resolve(null);
-          });
-        } else {
-          console.error("File not found:", path);
-          isResolved = true;
-          resolve(null);
-        }
-        return;
-      }
-        class FileSuggestModal extends SuggestModal<TFile> {
-          getSuggestions(query:string) {
-            // Get all files with the right extension
-            const files =  this.app.vault.getFiles()
-              .filter(file => extensions.includes(file.extension));
-              
-            // Filter by query if provided
-            if (query) {
-              return files.filter(file => 
-                file.path.toLowerCase().includes(query.toLowerCase())
-              );
-            }
-            return files;
-          }
-          
-          renderSuggestion(file:TFile, el: HTMLElement) {
-            el.createEl("div", { text: file.name });
-            el.createEl("small", { text: file.path });
-          }
-          
-          onChooseSuggestion(file:TFile, evt: MouseEvent|KeyboardEvent) {
-            console.log("File content:");
-            if (cancelTimeoutHandle !== undefined) {
-                clearTimeout(cancelTimeoutHandle);
-                cancelTimeoutHandle = undefined;
-            }
-            this.app.vault.cachedRead(file).then(content => {isResolved = true; 
-                resolve({
-              path: file.path,
-              name: file.basename,
-              extension: file.extension,
-              content: content
-            });
-          }).catch(err => {
-              console.error("Failed to read file:", err);
-              resolve(null);});}
-        }
-        
-        // Show the modal
-        const modal = new FileSuggestModal(this.app);
-        modal.setPlaceholder("Select a file");
-        modal.onClose = () => {
-            // If onClose is called, and a suggestion hasn't ALREADY been chosen and processed,
-            // this implies a cancellation or an edge case where onClose fires very quickly.
-            // We use a setTimeout to yield to the event loop, giving onChooseSuggestion
-            // a chance to run if it was triggered by the same user action that closed the modal.
-            if (cancelTimeoutHandle !== undefined) { // Clear previous timeout if any (e.g. rapid open/close)
-                clearTimeout(cancelTimeoutHandle);
-            }
-            cancelTimeoutHandle = window.setTimeout(() => { // window.setTimeout for NodeJS.Timeout type
-                // After yielding, if the promise hasn't been resolved by onChooseSuggestion
-                // and a suggestion wasn't flagged as chosen, then resolve as null (cancellation).
-                if (!isResolved) {
-                    resolve(null);
-                }
-                // If suggestionChosen IS true here, it means onChooseSuggestion ran,
-                // set the flag, and it's responsible for resolving (or has already).
-                // If promiseResolved IS true, it's already handled.
-            }, 0); // Yield to the event loop.
-        };
-        modal.open();
-        
-      });
-    }
+    readFile: async (path = null, extensions = ['txt', 'md', 'json', 'csv']) => {
+        return await this.readFile(this.app, path, extensions);
+    },
+      // Frontmatter access utility
+  getFrontmatter: async (notePath = null, key = null, defaultValue = null) => {
+    return await this.getFrontmatter(notePath, key, defaultValue);
+  },
               };
 
             // Execute the code and get the component
@@ -426,6 +596,102 @@ readFile: async (path=null, extensions = ['txt', 'md', 'json','csv']) => {
         console.timeEnd('component-render');
     }
 
+    async readFile(
+        app: App, 
+        path: string | null = null, 
+        extensions: string[] = ['txt', 'md', 'json', 'csv']
+      ): Promise<{ path: string; name: string; extension?: string; content: string } | null> {
+        return new Promise((resolve) => {
+            let isResolved = false;
+            let cancelTimeoutHandle: number | undefined = undefined; // To store timeout handle for cancellation
+            // Create a SuggestModal subclass that lists vault files
+    
+            // If a specific path is provided, read that file directly without showing modal
+        if (path) {
+            const file = this.app.vault.getAbstractFileByPath(path);
+            if (file && file instanceof TFile) {
+            this.app.vault.cachedRead(file).then(content => {
+                isResolved = true;
+                resolve({
+                path: file.path,
+                name: file.name,
+                content: content
+                });
+            }).catch(err => {
+                console.error("Failed to read file:", err);
+                isResolved = true;
+                resolve(null);
+            });
+            } else {
+            console.error("File not found:", path);
+            isResolved = true;
+            resolve(null);
+            }
+            return;
+        }
+            class FileSuggestModal extends SuggestModal<TFile> {
+            getSuggestions(query:string) {
+                // Get all files with the right extension
+                const files =  this.app.vault.getFiles()
+                .filter(file => extensions.includes(file.extension));
+                
+                // Filter by query if provided
+                if (query) {
+                return files.filter(file => 
+                    file.path.toLowerCase().includes(query.toLowerCase())
+                );
+                }
+                return files;
+            }
+            
+            renderSuggestion(file:TFile, el: HTMLElement) {
+                el.createEl("div", { text: file.name });
+                el.createEl("small", { text: file.path });
+            }
+            
+            onChooseSuggestion(file:TFile, evt: MouseEvent|KeyboardEvent) {
+                console.log("File content:");
+                if (cancelTimeoutHandle !== undefined) {
+                    clearTimeout(cancelTimeoutHandle);
+                    cancelTimeoutHandle = undefined;
+                }
+                this.app.vault.cachedRead(file).then(content => {isResolved = true; 
+                    resolve({
+                path: file.path,
+                name: file.basename,
+                extension: file.extension,
+                content: content
+                });
+            }).catch(err => {
+                console.error("Failed to read file:", err);
+                resolve(null);});}
+            }
+            
+            // Show the modal
+            const modal = new FileSuggestModal(this.app);
+            modal.setPlaceholder("Select a file");
+            modal.onClose = () => {
+                // We use a setTimeout to yield to the event loop, giving onChooseSuggestion
+                // a chance to run if it was triggered by the same user action that closed the modal.
+                if (cancelTimeoutHandle !== undefined) { // Clear previous timeout if any (e.g. rapid open/close)
+                    clearTimeout(cancelTimeoutHandle);
+                }
+                cancelTimeoutHandle = window.setTimeout(() => { // window.setTimeout for NodeJS.Timeout type
+                    // After yielding, if the promise hasn't been resolved by onChooseSuggestion
+                    // and a suggestion wasn't flagged as chosen, then resolve as null (cancellation).
+                    if (!isResolved) {
+                        resolve(null);
+                    }
+                    // If suggestionChosen IS true here, it means onChooseSuggestion ran,
+                    // set the flag, and it's responsible for resolving (or has already).
+                    // If promiseResolved IS true, it's already handled.
+                }, 0); // Yield to the event loop.
+            };
+            modal.open();
+        
+      });
+    
+      }
     onunload() {
    
         this.root.unmount();

@@ -52,7 +52,7 @@ export default Greeting;
 **Component Requirements:**
 - Must include a default export
 - Must be self-contained in one code block
-- Component name should match default export
+- Component ro Render must be the first component within codeblock
 
 ### Component Structure
 
@@ -120,12 +120,30 @@ import * as XLSX from 'xlsx';  // Excel files
 import * as mathjs from 'mathjs'; // Mathematics
 import { format, parseISO } from 'date-fns'; // Date handling
 
-// Interface components
-import { Card, Tabs, Switch } from '@/components/ui';
-import { TrendingUp, Activity, Settings } from 'lucide-react'; // 70+ icons
+    // Interface components
+    import { Card, Tabs, Switch } from '@/components/ui';
+    import { TrendingUp, Activity, Settings } from 'lucide-react'; // 70+ icons
 ```
-See the full [component reference](./COMPONENTS.md) for a complete list of available libraries, components and utilities.
-Even if needed libraries are not provided within this list CDN imports are always an option.
+    See the full [component reference](./COMPONENTS.md) for a complete list of available libraries, components and utilities.
+    Even if needed libraries are not provided within this list CDN imports are always an option.
+
+    ### Available in Component Scope
+
+    All components have access to these objects and functions:
+
+    ```javascript
+    // Note context
+    noteContext.frontmatter  // All frontmatter properties (not just react_data)
+    noteContext.path         // Full path to current note
+    noteContext.basename     // Note filename without extension
+
+    // Utilities
+    getTheme()              // Returns 'dark' or 'light'
+    readFile(path, exts)    // File reading utility
+    getFrontmatter(key?,defaultValue?,notePath?) // If properties are null returns entire frontmatter or current note if path not provided
+    vaultImport(path, index) // Preprocessor directive to include code from other notes (not a runtime function)
+    ```
+
 
 ## 💻 Core Features
 
@@ -299,6 +317,47 @@ const styles = {
 // Or use 'dark:' within your components
 ```
 
+### 8. Vault Code Imports
+
+Import React code from other notes in your vault:
+
+```javascript
+// Import code from another note
+vaultImport('Components/SharedComponents.md', 0);  // 0 = first code block
+vaultImport('Hooks/CustomHooks.md', 1);           // 1 = second code block
+
+const MyComponent = () => {
+    // Use imported components and hooks from these files
+    const data = useImportedHook();
+    return <ImportedComponent data={data} />;
+};
+```
+
+
+### 9. Definition Storage Blocks
+
+Not all react code blocks need to be valid React you can use React code blocks to store and organize utility functions, hooks, and other definitions:
+
+```javascript
+// This displays as a definition storage block instead of rendering
+const utilities = () => ({
+    formatDate: (date) => date.toLocaleDateString(),
+    calculateSum: (arr) => arr.reduce((a, b) => a + b, 0),
+    parseData: (raw) => JSON.parse(raw)
+});
+
+export default utilities;
+```
+![Object Definitions Codeblock](assets/codeStorageBox.gif)
+When a code block returns an object instead of JSX, it automatically displays as a storage block showing all exported definitions. If you have multiple objects containing definitions only the first object will be previewed.
+Perfect for:
+
+Utility function collections
+Custom hook libraries
+Configuration objects
+Shared constants
+
+Import these definitions into other components using vaultImport().
 
 ## 🎨 Component Examples
 
@@ -425,6 +484,9 @@ Knowledge progression dashboard using persistant storage and ability to make new
  MCP fetches data from youtube and uses Reactive Notes to display react component for visualising fetched data.
 
 ![alt text](assets/IntegratedUsage.gif)
+
+**Games utilising event listeners for key action mapping**
+![alt text](assets/gamingObsidian.gif)
 
 ## 🛠️Development Guide
 ### Component Structure
