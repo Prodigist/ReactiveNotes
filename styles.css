@@ -86,6 +86,7 @@
     white-space: pre-wrap;
     word-break: break-word;
 }
+
 /*
 
 This CSS file will be included with your plugin, and
@@ -214,17 +215,11 @@ If your plugin does not need CSS, delete this file.
   box-shadow: none;
   transition: background-color 0.2s, color 0.2s;
 }
-.react-component-container button.bg-gray-200,
-.react-component-container .bg-gray-200 {
-  background-color: rgb(229, 231, 235);
-}
+
 .react-component-container * {
   box-sizing: border-box;
 }
 
-.react-component-container button.hover\:bg-gray-300:hover {
-  background-color: rgb(209, 213, 219);
-}
 
 .react-component-container button:disabled {
   opacity: 0.5;
@@ -252,6 +247,7 @@ If your plugin does not need CSS, delete this file.
 }
 
  
+
 /* Tab component styling */
 .react-component-container [role="tab"],
 .react-component-container [class*="tab-trigger"],
@@ -317,7 +313,6 @@ If your plugin does not need CSS, delete this file.
 .react-component-container .disabled\:opacity-30:disabled {opacity: 0.3 !important;}
 .react-component-container .disabled\:cursor-not-allowed:disabled {cursor: not-allowed !important;}
 
-/*----------*/
 /*! tailwindcss v4.1.4 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme, base, components, utilities;

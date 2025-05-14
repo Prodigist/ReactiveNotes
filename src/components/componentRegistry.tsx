@@ -15,7 +15,7 @@ import {
     Upload, Activity, AlertCircle, TrendingUp, TrendingDown, Home, BarChart2, BarChart3, Code, Settings, Moon, Sun, ChevronLeft, ChevronRight, Heart, ExternalLink,
     Play, Image as ImageIcon, Check, X, Plus, Minus, ArrowRightCircle, ArrowLeftCircle, ArrowUpCircle, ArrowDownCircle,
     ChevronUp, ChevronDown, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, PlusCircle, MinusCircle, XCircle, CheckCircle,
-    Info, Search, Trash, Edit, Save, Share, Copy, Pause, Undo, Redo, ZoomIn, ZoomOut, PlayCircle, PauseCircle, Clock, Calendar,
+    Info, Search, Trash, Edit, Save, Share, Copy, Pause, Undo, Redo, ZoomIn, ZoomOut, PlayCircle, PauseCircle, Circle, Clock, Calendar,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -99,9 +99,8 @@ RadialBarChart, RadialBar,
     ExternalLink, BarChart2,
     Play, ImageIcon, Check, X, Plus, Minus, ArrowRightCircle, ArrowLeftCircle, ArrowUpCircle, ArrowDownCircle,
     ChevronUp, ChevronDown, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, PlusCircle, MinusCircle, XCircle, CheckCircle,
-    Info, Search, Trash, Edit, Save, Share, Copy, Pause, Undo, Redo, ZoomIn, ZoomOut, PlayCircle, PauseCircle, Clock, Calendar,
+    Info, Search, Trash, Edit, Save, Share, Copy, Pause, Undo, Redo, ZoomIn, ZoomOut, PlayCircle, PauseCircle, Circle, Clock, Calendar,
     LucideIcons,
-
         //data processing utilities
         dateFns: { format, addDays, differenceInDays, parseISO },
         csv: { parse, stringify },

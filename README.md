@@ -120,29 +120,36 @@ import * as XLSX from 'xlsx';  // Excel files
 import * as mathjs from 'mathjs'; // Mathematics
 import { format, parseISO } from 'date-fns'; // Date handling
 
-    // Interface components
-    import { Card, Tabs, Switch } from '@/components/ui';
-    import { TrendingUp, Activity, Settings } from 'lucide-react'; // 70+ icons
+// Interface components
+import { Card, Tabs, Switch } from '@/components/ui';
+import { TrendingUp, Activity, Settings } from 'lucide-react'; // 70+ icons
+import * as LucideIcons from 'lucide-react'; // For complete access just use LucideIcons.IconName
 ```
-    See the full [component reference](./COMPONENTS.md) for a complete list of available libraries, components and utilities.
-    Even if needed libraries are not provided within this list CDN imports are always an option.
+See the full [component reference](./COMPONENTS.md) for a complete list of available libraries, components and utilities.
+Even if needed libraries are not provided within this list CDN imports are always an option.
 
-    ### Available in Component Scope
+### Available in Component Scope
 
-    All components have access to these objects and functions:
+All components have access to these objects and functions:
 
-    ```javascript
-    // Note context
-    noteContext.frontmatter  // All frontmatter properties (not just react_data)
-    noteContext.path         // Full path to current note
-    noteContext.basename     // Note filename without extension
+```javascript
+// Note context
+noteContext.frontmatter  // All frontmatter properties (not just react_data)
+noteContext.path         // Full path to current note
+noteContext.basename     // Note filename without extension
 
-    // Utilities
-    getTheme()              // Returns 'dark' or 'light'
-    readFile(path, exts)    // File reading utility
-    getFrontmatter(key?,defaultValue?,notePath?) // If properties are null returns entire frontmatter or current note if path not provided
-    vaultImport(path, index) // Preprocessor directive to include code from other notes (not a runtime function)
-    ```
+// Utilities
+getTheme()              // Returns 'dark' or 'light'
+readFile(path, exts)    // File reading utility
+
+// Update frontmatter properties, either in react_data (extProp:false) or at root level(extProp:true) Defaults to react_data
+updateFrontmatter(key, value, notePath?, extProp?) 
+// If properties are null returns entire frontmatter or current note if path not provided, extProp defaults to true: entire frontmatter
+getFrontmatter(key?,defaultValue?,notePath?, extProp?)
+
+vaultImport(path, index) // Preprocessor directive to include code from other notes (not a runtime function)
+Notice(message, timeout?)  // Display non-blocking notifications (use instead of alert() which blocks the UI thread)
+```
 
 
 ## 💻 Core Features
@@ -175,13 +182,32 @@ import { format, parseISO } from 'date-fns'; // Date handling
 // Local state with React
 const [local, setLocal] = useState(0);
 
-// Persistent state in note frontmatter
+useStorage(
+  key,            // Property name to store in frontmatter 
+  defaultValue,   // Default value if property doesn't exist
+  notePath = null, // Optional: Path to another note (null = current note)
+  extProp = false  // Optional: true = store at root level, false = store in react_data
+)
+// Persistent state in current note's frontmatter
 const [stored, setStored] = useStorage('key', defaultValue);
+
+//  Store at root level of frontmatter
+const [status, setStatus] = useStorage('status', 'draft', null, true);
+
+// Cross-note + root level: Store at root level of another note
+const [tags, setTags] = useStorage('tags', ['react'], 'Template.md', true);
+// Set value to undefined to delete keys
+
+// Direct frontmatter manipulation (alternative to useStorage hook)
+await updateFrontmatter('react_key', newValue); // Updates react_data.react_key
+await updateFrontmatter('custom_key', newValue, null, true); // Updates root level custom_key
+await updateFrontmatter('tags', ['react', 'component'], 'path/to/other.md', true); // Updates another note's tags
 ```
 - Persistent storage between sessions
 - State synchronization across components
 - Frontmatter integration
 - Cross-note state management
+- Support for both structured data in react_data and direct frontmatter properties
 
 ### Note-Specific Data Persistence
 - Each note maintains independent state through frontmatter storage under a key called react_data
