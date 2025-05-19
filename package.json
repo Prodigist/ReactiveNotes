@@ -1,6 +1,6 @@
 {
 	"name": "reactive-notes",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"description": "Transform your vault into a reactive computational environment with React components.",
 	"main": "main.js",
 	"scripts": {

@@ -9,11 +9,14 @@ First off, thank you for considering contributing to ReactiveNotes! It's people 
 Before diving in, check our current focus areas:
 
 - 📱 Mobile support optimization
-- 🎨 Enhanced visualization capabilities
-- 🔄 State management improvements
+- ~~🎨 Enhanced visualization capabilities~~
+- ~~🔄 State management improvements~~
+* 🧩 Component Templates *(New Focus)*
+* 🖱️ GUI for Component Snippets *(New Focus)*
 - 🧪 Testing infrastructure
-- 📚 Documentation enhancements
+- ~~📚 Documentation enhancements~~
 
+> **Extra note:** If utilising or implementing pre-existing functionality, the general idea is to mirror standard use cases to minimise learning curves for contributors and users alike.
 ## 🔧 Development Setup
 
 ### Prerequisites
@@ -68,11 +71,10 @@ ReactiveNotes/
 │   │   ├── core/
 │   │   └── ui/
 │   ├── services/           # Core services
-│   │   ├── storage.ts
-│   │   └── marketData.ts
+│   │   └── storage.ts
 │   ├── hooks/             # Custom React hooks
 │   ├── utils/             # Utility functions
-│   └── main.tsx          # Plugin entry point
+├── main.tsx          # Plugin entry point
 ├── styles/               # CSS and Tailwind configs
 ├── tests/               # Test files
 └── types/              # TypeScript definitions
@@ -315,7 +317,6 @@ We follow [Semantic Versioning](https://semver.org/):
 ## 🤝 Community Guidelines
 
 ### Communication
-- Be respectful and inclusive
 - Keep discussions technical
 - Provide context with questions
 - Use appropriate channels
@@ -328,7 +329,7 @@ We follow [Semantic Versioning](https://semver.org/):
 
 ### Recognition
 Contributors are recognized in:
-- CONTRIBUTORS.md
+- CONTRIBUTORS.md (coming soon)
 - Release notes
 - Community spotlights
 

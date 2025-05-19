@@ -50,3 +50,5 @@ src/core/tailwind.ts
 main.js.map
 *.tsbuildinfo
 .DS_Store
+
+forgottenStuff.txt

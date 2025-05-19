@@ -1,4 +1,4 @@
-import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer, TFile, App, stringifyYaml, Notice, SuggestModal } from 'obsidian';
+import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer, TFile, App, stringifyYaml, Notice, SuggestModal, loadMathJax } from 'obsidian';
 import { createRoot } from 'react-dom/client';
 import { transform } from '@babel/standalone';
 import * as React from 'react';
@@ -9,11 +9,15 @@ import { useStorage } from 'src/hooks/useStorage';
 import { ComponentRegistry } from 'src/components/componentRegistry';
 import { ErrorBoundary } from 'src/components/ErrorBoundary';
 
-
 import { read } from 'fs';
 import { error } from 'console';
 
-
+declare global {
+    interface Window {
+      MathJax: any;
+    }
+  }
+  
 class ReactComponentChild extends MarkdownRenderChild {
     private root: ReturnType<typeof createRoot>;
     private storage: StorageManager;
@@ -81,7 +85,7 @@ class ReactComponentChild extends MarkdownRenderChild {
                 new Notice(errorMsg);
                 return defaultValue;
             }
-            console.log('Frontmatter:', frontmatter);
+            //console.log('Frontmatter:', frontmatter);
             // Return specific key if requested
             if (key) {
                 if(extProp&&!frontmatter[key]&&frontmatter.react_data[key]) new Notice(`Key "${key}" not found in outer frontmatter, But found in react_data. Set extProp to false to access it.`);
@@ -132,260 +136,381 @@ class ReactComponentChild extends MarkdownRenderChild {
     }
 }
 
-private RenderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    
-    return (
-        <ErrorBoundary
-        fallback={({ error }) => {
-            // The ErrorBoundary will catch the error and display a fallback UI.
-            // The console log for "Objects are not valid as a React child" should have been suppressed.
-            if (error.message?.includes('Objects are not valid as a React child')) {
-                const objectMatch = error.message.match(/found: object with keys {([^}]+)}/);
-                const keys = objectMatch ? objectMatch[1].split(',').map(k => k.trim()) : ['unknown'];
+    private RenderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    // const containerRef = React.useRef(null);
+        const containerRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+        if (!containerRef.current || !window.MathJax) return;
+        const container = containerRef.current;
+        // 1. Find math content in our component
+        const processMathInElement = (element: HTMLElement) => {
+        // Find all text nodes
+        const walker = document.createTreeWalker(
+            element,
+            NodeFilter.SHOW_TEXT,
+            null
+        );
+        
+        const nodesToProcess = [];
+        let currentNode;
+        while ((currentNode = walker.nextNode())) {
+            const text = currentNode.nodeValue || '';
+            
+            // Look for inline math: $...$
+            if (text.includes('$') && !text.includes('$$')) {
+            nodesToProcess.push({node: currentNode, isDisplay: false});
+            }
+            
+            // Look for display math: $$...$$
+            if (text.includes('$$')) {
+            nodesToProcess.push({node: currentNode, isDisplay: true});
+            }
+        }
+        
+        // 2. Process each node with math content
+        nodesToProcess.forEach(({node, isDisplay}) => {
+            const text = node.nodeValue || '';
+            const parent = node.parentNode;
+            
+            if (!parent) return;
+            
+            if (isDisplay) {
+            // Handle display math: $$...$$
+            const parts = text.split('$$');
+            if (parts.length < 3) return; // Not enough delimiters
+            
+            // Create replacement fragment
+            const fragment = document.createDocumentFragment();
+            
+            for (let i = 0; i < parts.length; i++) {
+                if (i % 2 === 0) {
+                // Text part
+                if (parts[i]) {
+                    fragment.appendChild(document.createTextNode(parts[i]));
+                }
+                } else {
+                // Math part
+                try {
+                    const mathNode = window.MathJax.tex2chtml(parts[i], {display: true});
+                    fragment.appendChild(mathNode);
+                } catch (e) {
+                    console.error("MathJax display math error:", e);
+                    fragment.appendChild(document.createTextNode(`$$${parts[i]}$$`));
+                }
+                }
+            }
+            
+            // Replace original node with processed content
+            parent.replaceChild(fragment, node);
+            } else {
+            // Handle inline math: $...$
+            const parts = text.split('$');
+            if (parts.length < 3) return; // Not enough delimiters
+            
+            // Create replacement fragment
+            const fragment = document.createDocumentFragment();
+            
+            for (let i = 0; i < parts.length; i++) {
+                if (i % 2 === 0) {
+                // Text part
+                if (parts[i]) {
+                    fragment.appendChild(document.createTextNode(parts[i]));
+                }
+                } else {
+                // Math part
+                try {
+                    const mathNode = window.MathJax.tex2chtml(parts[i], {display: false});
+                    fragment.appendChild(mathNode);
+                } catch (e) {
+                    console.error("MathJax inline math error:", e);
+                    fragment.appendChild(document.createTextNode(`$${parts[i]}$`));
+                }
+                }
+            }
+            
+            // Replace original node with processed content
+            parent.replaceChild(fragment, node);
+            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                window.MathJax.typesetPromise([containerRef.current]).catch((err: any) => console.error("MathJax typesetPromise error:", err));
+            }
+            }
+        });
+        };
+        
+        // Process the container
+        setTimeout(() => {
+        try {
+            processMathInElement(container);
+        } catch (e) {
+            console.error("MathJax processing error:", e);
+        }
+        }, 50);
+          // Cleanup function
+    return () => {
+        try {
+        //Need to explicitly tell MathJax to typeset new content if it hasn't already been configured to do so automatically.
+        if (window.MathJax && containerRef.current) {
+            window.MathJax.typesetClear([containerRef.current]);
+        }
+        } catch (e) {
+        console.warn("MathJax cleanup error:", e);
+        }
+    };
+    }, [children]);
+        return (
+            <ErrorBoundary
+            fallback={({ error }) => {
+                // The ErrorBoundary will catch the error and display a fallback UI.
+                // The console log for "Objects are not valid as a React child" should have been suppressed.
+                if (error.message?.includes('Objects are not valid as a React child')) {
+                    const objectMatch = error.message.match(/found: object with keys {([^}]+)}/);
+                    const keys = objectMatch ? objectMatch[1].split(',').map(k => k.trim()) : ['unknown'];
+                    return (
+                        <div style={{ padding: '12px', backgroundColor: 'var(--background-modifier-form-field)', borderRadius: '6px', border: '1px solid var(--background-modifier-border)', fontFamily: 'var(--font-monospace)', margin: '1rem 0' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>🧩</span> <span>Component Rendered an Object</span>
+                        </div>
+                        <div style={{ fontSize: '0.9em', opacity: 0.8, marginBottom: '4px' }}>A React component attempted to render a plain JavaScript object. Objects need to be mapped to renderable elements.</div>
+                        <div style={{ fontSize: '0.9em', opacity: 0.8 }}>Object keys found:</div>
+                        <ul style={{ margin: '8px 0 0 20px', paddingLeft: '0', listStyleType: 'disc' }}>{keys.map(key => <li key={key} style={{fontSize: '0.85em'}}>{key}</li>)}</ul>
+                        </div>
+                    );
+                }
+                // Default error display for other types of errors
                 return (
-                    <div style={{ padding: '12px', backgroundColor: 'var(--background-modifier-form-field)', borderRadius: '6px', border: '1px solid var(--background-modifier-border)', fontFamily: 'var(--font-monospace)', margin: '1rem 0' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>🧩</span> <span>Component Rendered an Object</span>
-                    </div>
-                    <div style={{ fontSize: '0.9em', opacity: 0.8, marginBottom: '4px' }}>A React component attempted to render a plain JavaScript object. Objects need to be mapped to renderable elements.</div>
-                    <div style={{ fontSize: '0.9em', opacity: 0.8 }}>Object keys found:</div>
-                    <ul style={{ margin: '8px 0 0 20px', paddingLeft: '0', listStyleType: 'disc' }}>{keys.map(key => <li key={key} style={{fontSize: '0.85em'}}>{key}</li>)}</ul>
+                    <div className="react-component-error" style={{ margin: '1rem 0' }}>
+                    <p style={{color: 'var(--text-error)', fontWeight: 'bold'}}>Error in component:</p>
+                    <pre className="error-message" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', backgroundColor: 'var(--background-secondary-alt)', padding: '8px', borderRadius: '4px', color: 'var(--text-error)'}}>{error.message}</pre>
+                    {error.stack && <details style={{marginTop: '8px'}}><summary style={{cursor: 'pointer', fontSize: '0.9em'}}>Stack Trace</summary><pre style={{fontSize: '0.8em', maxHeight: '150px', overflowY: 'auto', backgroundColor: 'var(--background-secondary)', padding: '8px', borderRadius: '4px', marginTop: '4px'}}>{error.stack}</pre></details>}
                     </div>
                 );
-            }
-            // Default error display for other types of errors
-            return (
-                <div className="react-component-error" style={{ margin: '1rem 0' }}>
-                <p style={{color: 'var(--text-error)', fontWeight: 'bold'}}>Error in component:</p>
-                <pre className="error-message" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', backgroundColor: 'var(--background-secondary-alt)', padding: '8px', borderRadius: '4px', color: 'var(--text-error)'}}>{error.message}</pre>
-                {error.stack && <details style={{marginTop: '8px'}}><summary style={{cursor: 'pointer', fontSize: '0.9em'}}>Stack Trace</summary><pre style={{fontSize: '0.8em', maxHeight: '150px', overflowY: 'auto', backgroundColor: 'var(--background-secondary)', padding: '8px', borderRadius: '4px', marginTop: '4px'}}>{error.stack}</pre></details>}
-                </div>
-            );
-        }}
-        >
-        {children}
-        </ErrorBoundary>
-    );
-};
+            }}
+            >
+            <div ref={containerRef}>
+            {children}
+            </div>
+            </ErrorBoundary>
+        );
+    };
 
-private needsThree(code: string): boolean {
-    // Check if the code contains any Three.js specific imports or usage
-    // More comprehensive detection of THREE usage
-    const hasThreeImports = /import\s+.*?three['"];?\s*$/gm.test(code) || 
-    /import\s*{\s*[^}]*}\s*from\s*['"]three['"];?\s*$/gm.test(code) ||
-    /import\s+.*?\s+as\s+(\w+)\s+from\s+['"]three['"];?\s*$/gm.test(code);
-    
-    // Save any custom import name from "import * as CustomName from 'three'"
-    const threeAliasMatch = code.match(/import\s+\*\s+as\s+(\w+)\s+from\s+['"]three['"];?\s*$/m);
-    const threeAlias = threeAliasMatch ? threeAliasMatch[1] : null;
-    
-    // Check for various THREE usage patterns
-    let hasThreeUsage = /\bTHREE\.|\bnew\s+THREE\.|\bextends\s+THREE\./.test(code) || // Direct THREE usage
-    /\bUtilities\.THREE\.|\bnew\s+Utilities\.THREE\./.test(code) || // Utilities.THREE usage
-    /\bComponentRegistry\.Utilities\.THREE\./.test(code); // Full path usage
-    
-    // If there's a custom alias, check for that too
-    if (threeAlias) {
-        hasThreeUsage = hasThreeUsage || new RegExp(`\\b${threeAlias}\\.`).test(code);
+    private needsThree(code: string): boolean {
+        // Check if the code contains any Three.js specific imports or usage
+        // More comprehensive detection of THREE usage
+        const hasThreeImports = /import\s+.*?three['"];?\s*$/gm.test(code) || 
+        /import\s*{\s*[^}]*}\s*from\s*['"]three['"];?\s*$/gm.test(code) ||
+        /import\s+.*?\s+as\s+(\w+)\s+from\s+['"]three['"];?\s*$/gm.test(code);
+        
+        // Save any custom import name from "import * as CustomName from 'three'"
+        const threeAliasMatch = code.match(/import\s+\*\s+as\s+(\w+)\s+from\s+['"]three['"];?\s*$/m);
+        const threeAlias = threeAliasMatch ? threeAliasMatch[1] : null;
+        
+        // Check for various THREE usage patterns
+        let hasThreeUsage = /\bTHREE\.|\bnew\s+THREE\.|\bextends\s+THREE\./.test(code) || // Direct THREE usage
+        /\bUtilities\.THREE\.|\bnew\s+Utilities\.THREE\./.test(code) || // Utilities.THREE usage
+        /\bComponentRegistry\.Utilities\.THREE\./.test(code); // Full path usage
+        
+        // If there's a custom alias, check for that too
+        if (threeAlias) {
+            hasThreeUsage = hasThreeUsage || new RegExp(`\\b${threeAlias}\\.`).test(code);
+        }
+        
+        // Also check for common THREE classes even without the THREE prefix
+        const commonThreeClasses = /\b(Scene|PerspectiveCamera|WebGLRenderer|Vector3|BoxGeometry|MeshBasicMaterial|Mesh|Object3D|Group|AmbientLight|DirectionalLight)\b/.test(code);
+        
+        // Combined check
+        return hasThreeImports || hasThreeUsage || commonThreeClasses;
     }
-    
-    // Also check for common THREE classes even without the THREE prefix
-    const commonThreeClasses = /\b(Scene|PerspectiveCamera|WebGLRenderer|Vector3|BoxGeometry|MeshBasicMaterial|Mesh|Object3D|Group|AmbientLight|DirectionalLight)\b/.test(code);
-    
-    // Combined check
-    return hasThreeImports || hasThreeUsage || commonThreeClasses;
-}
 
-private async preprocessCode(code: string): Promise<string> {
-    
-    // Replace CDN imports with script loading
-    code = code.replace(
-        /import\s+(\w+)\s+from\s+['"]https:\/\/cdnjs\.cloudflare\.com\/([^'"]+)['"]/g,
-        (match, importName, cdnPath) => `
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/${cdnPath}';
-            document.body.appendChild(script);`);
-        // Remove imports carefully
-        code = code.replace(/import\s+.*?['"].*$/gm, '');
-        code = code.replace(/import\s*{[^}]*}\s*from\s*['"][^'"]*['"].*$/gm, '');
-        code = code.replace(/import\s*\([^)]*\).*$/gm, '');
+    private async preprocessCode(code: string): Promise<string> {
         
-        // Handle both JS/TS exports
-        code = code.replace(/export\s+default\s+/gm, '');
-        code = code.replace(/export\s+const\s+/gm, 'const ');
-        code = code.replace(/export\s+function\s+/gm, 'function ');
-        code = code.replace(/export\s+class\s+/gm, 'class ');
-        
-        
-        // Remove type annotations
-        //code = code.replace(/:\s*[A-Za-z<>[\]]+/g, '');
-        //code = code.replace(/<[A-Za-z,\s]+>/g, '');
-        
-        
-        // Find the component name
-        const componentMatch = code.match(/^(?![\s]*\/\/).*?(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:(?:\([^)]*\)|)\s*=>|function\s*\(|React\.memo\(|React\.forwardRef\(|class\s+extends\s+React\.Component))/m);
-        const storeMatch = !componentMatch ?  code.match(/(?:const\s+(\w+)\s*=\s*{|class\s+(\w+)\s*{)/) : null;
-        
-        if (!componentMatch) {
-            // If no component found, look for object literals or other exports
-            if (!storeMatch) {
-                throw new Error('No React component found');
+        // Replace CDN imports with script loading
+        code = code.replace(
+            /import\s+(\w+)\s+from\s+['"]https:\/\/cdnjs\.cloudflare\.com\/([^'"]+)['"]/g,
+            (match, importName, cdnPath) => `
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/${cdnPath}';
+                document.body.appendChild(script);`);
+            // Remove imports carefully
+            code = code.replace(/import\s+.*?['"].*$/gm, '');
+            code = code.replace(/import\s*{[^}]*}\s*from\s*['"][^'"]*['"].*$/gm, '');
+            code = code.replace(/import\s*\([^)]*\).*$/gm, '');
+            
+            // Handle both JS/TS exports
+            code = code.replace(/export\s+default\s+/gm, '');
+            code = code.replace(/export\s+const\s+/gm, 'const ');
+            code = code.replace(/export\s+function\s+/gm, 'function ');
+            code = code.replace(/export\s+class\s+/gm, 'class ');
+            
+            
+            // Remove type annotations
+            //code = code.replace(/:\s*[A-Za-z<>[\]]+/g, '');
+            //code = code.replace(/<[A-Za-z,\s]+>/g, '');
+            
+            
+            // Find the component name
+            const componentMatch = code.match(/^(?![\s]*\/\/).*?(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:(?:\([^)]*\)|)\s*=>|function\s*\(|React\.memo\(|React\.forwardRef\(|class\s+extends\s+React\.Component))/m);
+            const storeMatch = !componentMatch ?  code.match(/(?:const\s+(\w+)\s*=\s*{|class\s+(\w+)\s*{)/) : null;
+            
+            if (!componentMatch) {
+                // If no component found, look for object literals or other exports
+                if (!storeMatch) {
+                    throw new Error('No React component found');
+                }
             }
-        }
-        // Set safeName using either match
-        const componentName = componentMatch 
-        ? (componentMatch[1] || componentMatch[2]) 
-        : (storeMatch ? (storeMatch[1]|| storeMatch[2]) : 'EmptyComponent');
-        console.log('Found component:', componentName);
-        
-        // Find component name and rename if it's 'WrappedComponent'
-        const safeName = componentName === 'WrappedComponent' ? 'UserComponent' : componentName;
-        
-        if (componentName === 'WrappedComponent') {
-            code = code.replace(/\bWrappedComponent\b/, safeName);
-        }
-        // Create a HOC wrapper for chart components
-        const chartWrapper = `
-            const withChartContainer = (WrappedComponent) => {
-                return function ChartContainer(props) {
-                    const [mounted, setMounted] = React.useState(false);
-                    
-                    React.useEffect(() => {
-                        const timer = setTimeout(() => setMounted(true), 100);
-                        return () => clearTimeout(timer);
-                    }, []);
-        
-                    return React.createElement(
-                        'div',
-                        { style: { width: '100%', minHeight: '400px' } },
-                        mounted ? React.createElement(WrappedComponent, props) : null
-                    );
+            // Set safeName using either match
+            const componentName = componentMatch 
+            ? (componentMatch[1] || componentMatch[2]) 
+            : (storeMatch ? (storeMatch[1]|| storeMatch[2]) : 'EmptyComponent');
+            console.log('Found component:', componentName);
+            
+            // Find component name and rename if it's 'WrappedComponent'
+            const safeName = componentName === 'WrappedComponent' ? 'UserComponent' : componentName;
+            
+            if (componentName === 'WrappedComponent') {
+                code = code.replace(/\bWrappedComponent\b/, safeName);
+            }
+            // Create a HOC wrapper for chart components
+            const chartWrapper = `
+                const withChartContainer = (WrappedComponent) => {
+                    return function ChartContainer(props) {
+                        const [mounted, setMounted] = React.useState(false);
+                        
+                        React.useEffect(() => {
+                            const timer = setTimeout(() => setMounted(true), 100);
+                            return () => clearTimeout(timer);
+                        }, []);
+            
+                        return React.createElement(
+                            'div',
+                            { style: { width: '100%', minHeight: '400px' } },
+                            mounted ? React.createElement(WrappedComponent, props) : null
+                        );
+                    };
                 };
-            };
-        `;
-        // Combine everything
-        // added Component assignment
-        code = `
-            ${chartWrapper}
-            ${code}
-            const WrappedComponent = (() => {
-                // Add error handling for component existence
-                if (typeof ${safeName} === 'undefined') {
-                    throw new Error(\`Component "${safeName}" was matched but is undefined. Code context: ${code.slice(0, 100).replace(/`/g, '\\`')}...\`);
-                }
-            // Simple check - is it a valid React component?
-        const isValidComponent = (() => {
-            // Class component
-            if (${safeName}.prototype?.isReactComponent) return true;
-            
-            // Function that returns React elements
-            if (typeof ${safeName} === 'function') {
-                try {
-                    const result = ${safeName}({});
-                    return React.isValidElement(result);
-                } catch {
-                    // If it throws, check source code
-                    return ${safeName}.toString().includes('createElement') || 
-                           ${safeName}.toString().includes('<');
-                }
-            }
-            
-            // Direct objects are never valid components
-            return false;
-        })();
-        
-        // If not a valid component, treat as a storage block
-        if (!isValidComponent) {
-            return function StorageBlockWrapper() {
-                // Get the definitions - handle all cases
-                let definitions;
+            `;
+            // Combine everything
+            // added Component assignment
+            code = `
+                ${chartWrapper}
+                ${code}
+                const WrappedComponent = (() => {
+                    // Add error handling for component existence
+                    if (typeof ${safeName} === 'undefined') {
+                        throw new Error(\`Component "${safeName}" was matched but is undefined. Code context: ${code.slice(0, 100).replace(/`/g, '\\`')}...\`);
+                    }
+                // Simple check - is it a valid React component?
+            const isValidComponent = (() => {
+                // Class component
+                if (${safeName}.prototype?.isReactComponent) return true;
                 
+                // Function that returns React elements
                 if (typeof ${safeName} === 'function') {
                     try {
-                        // Try as function
-                        definitions = ${safeName}({});
-                    } catch (e) {
+                        const result = ${safeName}({});
+                        return React.isValidElement(result);
+                    } catch {
+                        // If it throws, check source code
+                        return ${safeName}.toString().includes('createElement') || 
+                            ${safeName}.toString().includes('<');
+                    }
+                }
+                
+                // Direct objects are never valid components
+                return false;
+            })();
+            
+            // If not a valid component, treat as a storage block
+            if (!isValidComponent) {
+                return function StorageBlockWrapper() {
+                    // Get the definitions - handle all cases
+                    let definitions;
+                    
+                    if (typeof ${safeName} === 'function') {
                         try {
-                            // Try as class
-                            definitions = new ${safeName}();
-                        } catch (e2) {
-                            // Last resort
-                            definitions = ${safeName};
+                            // Try as function
+                            definitions = ${safeName}({});
+                        } catch (e) {
+                            try {
+                                // Try as class
+                                definitions = new ${safeName}();
+                            } catch (e2) {
+                                // Last resort
+                                definitions = ${safeName};
+                            }
                         }
+                    } else {
+                        // Already an object (like IIFE or object literal)
+                        definitions = ${safeName};
                     }
-                } else {
-                    // Already an object (like IIFE or object literal)
-                    definitions = ${safeName};
-                }
-                
-                // Ensure it's an object
-                if (!definitions || typeof definitions !== 'object') {
-                    definitions = { error: "Couldn't extract definitions" };
-                }
-                
-                const keys = Object.keys(definitions);
-                return React.createElement('div', {
-                    style: {
-                        padding: '12px',
-                        backgroundColor: 'var(--background-modifier-form-field)',
-                        borderRadius: '6px',
-                        border: '1px solid var(--background-modifier-border)',
-                        fontFamily: 'var(--font-monospace)'
+                    
+                    // Ensure it's an object
+                    if (!definitions || typeof definitions !== 'object') {
+                        definitions = { error: "Couldn't extract definitions" };
                     }
-                }, [
-                    React.createElement('div', {
-                        style: { 
-                            fontWeight: 'bold',
-                            marginBottom: '8px',
+                    
+                    const keys = Object.keys(definitions);
+                    return React.createElement('div', {
+                        style: {
+                            padding: '12px',
+                            backgroundColor: 'var(--background-modifier-form-field)',
+                            borderRadius: '6px',
+                            border: '1px solid var(--background-modifier-border)',
+                            fontFamily: 'var(--font-monospace)'
+                        }
+                    }, [
+                        React.createElement('div', {
+                            style: { 
+                                fontWeight: 'bold',
+                                marginBottom: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }
+                        }, [
+                            React.createElement('span', null, '📦'),
+                            React.createElement('span', null, 'Definitions Storage Container:')
+                        ]),
+                            React.createElement('div', {
+                        style: {
+                            padding: '8px',
+                            marginBottom: '12px',
+                            color: 'var(--text-on-accent)',
+                            borderRadius: '4px',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px'
                         }
                     }, [
-                        React.createElement('span', null, '📦'),
-                        React.createElement('span', null, 'Definitions Storage Container:')
+                        React.createElement('code', {
+                            style: {
+                                padding: '2px 6px',
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                borderRadius: '3px',
+                                fontWeight: 'bold'
+                            }
+                        }, '${safeName}')
                     ]),
                         React.createElement('div', {
-                    style: {
-                        padding: '8px',
-                        marginBottom: '12px',
-                        color: 'var(--text-on-accent)',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }
-                }, [
-                    React.createElement('code', {
-                        style: {
-                            padding: '2px 6px',
-                            backgroundColor: 'rgba(255,255,255,0.2)',
-                            borderRadius: '3px',
-                            fontWeight: 'bold'
-                        }
-                    }, '${safeName}')
-                ]),
-                    React.createElement('div', {
-                        style: { fontSize: '0.9em', opacity: 0.8 }
-                    }, 'Exported definitions:'),
-                    React.createElement('ul', {
-                        style: { 
-                            margin: '8px 0',
-                            paddingLeft: '20px'
-                        }
-                    }, keys.map(key => 
-                        React.createElement('li', { key }, 
-                            \`\${key}: \${typeof definitions[key]}\`
-                        )
-                    ))
-                ]);
-            };
-        }
-            const isChartComponent = ${safeName}.toString().includes('ResponsiveContainer') || 
-                                       ${safeName}.toString().includes('svg');
-            return isChartComponent ? withChartContainer(${safeName}) : ${safeName};
-            })();
-    `;
+                            style: { fontSize: '0.9em', opacity: 0.8 }
+                        }, 'Exported definitions:'),
+                        React.createElement('ul', {
+                            style: { 
+                                margin: '8px 0',
+                                paddingLeft: '20px'
+                            }
+                        }, keys.map(key => 
+                            React.createElement('li', { key }, 
+                                \`\${key}: \${typeof definitions[key]}\`
+                            )
+                        ))
+                    ]);
+                };
+            }
+                const isChartComponent = ${safeName}.toString().includes('ResponsiveContainer') || 
+                                        ${safeName}.toString().includes('svg');
+                return isChartComponent ? withChartContainer(${safeName}) : ${safeName};
+                })();
+        `;
         code = await this.processVaultImports(code);
         // Wrap code in async IIFE to allow for await
         return `
@@ -585,12 +710,11 @@ private async preprocessCode(code: string): Promise<string> {
                     );
                     return [value, updateValue, error] as const;
                 };
-               
                 // Create scope with all required dependencies
                 const scope = {
                     ...ComponentRegistry,
                     useStorage: boundUseStorage,
-
+                    //Not included MarketAnalysis functions
                     getTheme: () => document.body.hasClass('theme-dark') ? 'dark' : 'light',
                     // Add note context
                     noteContext: {
@@ -639,7 +763,7 @@ private async preprocessCode(code: string): Promise<string> {
                       },
                     Notice: (message:string, timeout = 4000) => new Notice(message, timeout),
                 };
-                
+                //console.log("MathJax version/config:", window.MathJax?.version, window.MathJax?.config);
                 // Execute the code and get the component
                 const Component = await new Function(
                     ...Object.keys(scope),
@@ -713,7 +837,7 @@ private async preprocessCode(code: string): Promise<string> {
                     }
                     
                     onChooseSuggestion(file:TFile, evt: MouseEvent|KeyboardEvent) {
-                        console.log("File content:");
+                        //console.log("File content:");
                         if (cancelTimeoutHandle !== undefined) {
                             clearTimeout(cancelTimeoutHandle);
                             cancelTimeoutHandle = undefined;
@@ -797,8 +921,10 @@ private async preprocessCode(code: string): Promise<string> {
             
             export default class ReactNotesPlugin extends Plugin {
                 private tailwindStyles: HTMLStyleElement | null = null; // Tailwind styles reference
+ 
                 async onload() {
                     try {
+                        await loadMathJax();      
                         // Read the CSS file using Obsidian's API
                         // - only left here for development purposes,
                         // Users wont have this in production, we may use the build:css script to generate and add the css file in future
@@ -849,6 +975,14 @@ private async preprocessCode(code: string): Promise<string> {
                     if (this.tailwindStyles) {
                         this.tailwindStyles.remove();
                     }
+                     // Reset MathJax state
+                    if (window.MathJax) {
+                        try {
+                        window.MathJax.typesetClear();
+                        } catch (e) {
+                        console.warn("MathJax cleanup error:", e);
+                        }
+                    }
                 }
                 private updateTheme = () => {
                     // Update theme class on all react component containers
@@ -864,6 +998,8 @@ private async preprocessCode(code: string): Promise<string> {
                         }
                     });
                 };
+                    
+
                 private async parseMarkdownInHtml(container: HTMLElement) {
                     // Query all divs or specific HTML blocks you want to process
                     const htmlBlocks = Array.from(container.querySelectorAll('div:not(.markdown-rendered)')) as HTMLDivElement[];
