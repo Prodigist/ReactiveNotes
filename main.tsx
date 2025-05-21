@@ -1,4 +1,4 @@
-import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer, TFile, App, stringifyYaml, Notice, SuggestModal, loadMathJax } from 'obsidian';
+import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownRenderer, TFile, App, stringifyYaml, Notice, SuggestModal, loadMathJax, PluginSettingTab, Setting } from 'obsidian';
 import { createRoot } from 'react-dom/client';
 import { transform } from '@babel/standalone';
 import * as React from 'react';
@@ -8,7 +8,7 @@ import { StorageManager } from 'src/core/storage';
 import { useStorage } from 'src/hooks/useStorage';
 import { ComponentRegistry } from 'src/components/componentRegistry';
 import { ErrorBoundary } from 'src/components/ErrorBoundary';
-
+import {useMathJax} from 'src/hooks/mathJax';
 import { read } from 'fs';
 import { error } from 'console';
 
@@ -26,14 +26,16 @@ class ReactComponentChild extends MarkdownRenderChild {
     private noteFile: TFile;
     private ctx: MarkdownPostProcessorContext;
     private app: App;
+    private settings: ReactiveNotesSettings;
     private processedPaths = new Set<string>();
     
-    constructor(containerEl: HTMLElement, plugin: Plugin, ctx: MarkdownPostProcessorContext) {
+    constructor(containerEl: HTMLElement, plugin: ReactNotesPlugin, ctx: MarkdownPostProcessorContext) {
         super(containerEl);
         this.root = createRoot(containerEl);
         this.storage = new StorageManager(plugin);
         this.ctx = ctx;
         this.app = plugin.app; // Get app from plugin
+        this.settings=plugin.settings;
         // Get the source file from context
         if (ctx.sourcePath) {
             const abstractFile = plugin.app.vault.getAbstractFileByPath(ctx.sourcePath);
@@ -137,126 +139,7 @@ class ReactComponentChild extends MarkdownRenderChild {
 }
 
     private RenderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // const containerRef = React.useRef(null);
-        const containerRef = React.useRef<HTMLDivElement>(null);
-    React.useEffect(() => {
-        if (!containerRef.current || !window.MathJax) return;
-        const container = containerRef.current;
-        // 1. Find math content in our component
-        const processMathInElement = (element: HTMLElement) => {
-        // Find all text nodes
-        const walker = document.createTreeWalker(
-            element,
-            NodeFilter.SHOW_TEXT,
-            null
-        );
-        
-        const nodesToProcess = [];
-        let currentNode;
-        while ((currentNode = walker.nextNode())) {
-            const text = currentNode.nodeValue || '';
-            
-            // Look for inline math: $...$
-            if (text.includes('$') && !text.includes('$$')) {
-            nodesToProcess.push({node: currentNode, isDisplay: false});
-            }
-            
-            // Look for display math: $$...$$
-            if (text.includes('$$')) {
-            nodesToProcess.push({node: currentNode, isDisplay: true});
-            }
-        }
-        
-        // 2. Process each node with math content
-        nodesToProcess.forEach(({node, isDisplay}) => {
-            const text = node.nodeValue || '';
-            const parent = node.parentNode;
-            
-            if (!parent) return;
-            
-            if (isDisplay) {
-            // Handle display math: $$...$$
-            const parts = text.split('$$');
-            if (parts.length < 3) return; // Not enough delimiters
-            
-            // Create replacement fragment
-            const fragment = document.createDocumentFragment();
-            
-            for (let i = 0; i < parts.length; i++) {
-                if (i % 2 === 0) {
-                // Text part
-                if (parts[i]) {
-                    fragment.appendChild(document.createTextNode(parts[i]));
-                }
-                } else {
-                // Math part
-                try {
-                    const mathNode = window.MathJax.tex2chtml(parts[i], {display: true});
-                    fragment.appendChild(mathNode);
-                } catch (e) {
-                    console.error("MathJax display math error:", e);
-                    fragment.appendChild(document.createTextNode(`$$${parts[i]}$$`));
-                }
-                }
-            }
-            
-            // Replace original node with processed content
-            parent.replaceChild(fragment, node);
-            } else {
-            // Handle inline math: $...$
-            const parts = text.split('$');
-            if (parts.length < 3) return; // Not enough delimiters
-            
-            // Create replacement fragment
-            const fragment = document.createDocumentFragment();
-            
-            for (let i = 0; i < parts.length; i++) {
-                if (i % 2 === 0) {
-                // Text part
-                if (parts[i]) {
-                    fragment.appendChild(document.createTextNode(parts[i]));
-                }
-                } else {
-                // Math part
-                try {
-                    const mathNode = window.MathJax.tex2chtml(parts[i], {display: false});
-                    fragment.appendChild(mathNode);
-                } catch (e) {
-                    console.error("MathJax inline math error:", e);
-                    fragment.appendChild(document.createTextNode(`$${parts[i]}$`));
-                }
-                }
-            }
-            
-            // Replace original node with processed content
-            parent.replaceChild(fragment, node);
-            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-                window.MathJax.typesetPromise([containerRef.current]).catch((err: any) => console.error("MathJax typesetPromise error:", err));
-            }
-            }
-        });
-        };
-        
-        // Process the container
-        setTimeout(() => {
-        try {
-            processMathInElement(container);
-        } catch (e) {
-            console.error("MathJax processing error:", e);
-        }
-        }, 50);
-          // Cleanup function
-    return () => {
-        try {
-        //Need to explicitly tell MathJax to typeset new content if it hasn't already been configured to do so automatically.
-        if (window.MathJax && containerRef.current) {
-            window.MathJax.typesetClear([containerRef.current]);
-        }
-        } catch (e) {
-        console.warn("MathJax cleanup error:", e);
-        }
-    };
-    }, [children]);
+        const containerRef=this.settings.mathJaxEnabled?useMathJax([children]):null;
         return (
             <ErrorBoundary
             fallback={({ error }) => {
@@ -917,126 +800,191 @@ class ReactComponentChild extends MarkdownRenderChild {
                         if (onFinally) onFinally();
                     });
                 }
-            }
-            
-            export default class ReactNotesPlugin extends Plugin {
-                private tailwindStyles: HTMLStyleElement | null = null; // Tailwind styles reference
- 
-                async onload() {
-                    try {
-                        await loadMathJax();      
-                        // Read the CSS file using Obsidian's API
-                        // - only left here for development purposes,
-                        // Users wont have this in production, we may use the build:css script to generate and add the css file in future
-                        const css = await this.app.vault.adapter.read(`${this.manifest.dir}/outStyles.css`);
-                        
-                        // Inject the CSS
-                        const style = document.createElement('style');
-                        style.id = 'tailwind-styles';
-                        style.textContent = css;
-                        document.head.appendChild(style);
-                        this.tailwindStyles = style;
-                    } catch (error) {
-                        console.error("Failed to load CSS file:", error);
-                    }
-                    // Listen for theme changes
-                    this.registerEvent(
-                        this.app.workspace.on('css-change', () => {
-                            this.updateTheme();
-                        })
-                    );
-                    // Register markdown processor
-                    this.registerMarkdownCodeBlockProcessor(
-                        'react',
-                        (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
-                            const child = new ReactComponentChild(el, this, ctx);
-                            ctx.addChild(child);
-                            // Set a timeout to detect long-running operations
-                            const timeoutId = setTimeout(() => {
-                                new Notice('React component taking too long to render. Check for expensive operations.');
-                            }, 3000);
-                            child.render(source);
-                            clearTimeout(timeoutId);
-                        }
-                    );
-                    // Register a global Markdown postprocessor for HTML
-                    this.registerMarkdownPostProcessor((element, context) => {
-                        // Only process elements that are within ReactiveNotes components
-                        if (element.closest('.react-component-container')) {
-                            this.parseMarkdownInHtml(element);
-                        }
-                    });
-                    // Initial theme setup
-                    this.updateTheme();
-                }
-                
-                onunload() {
-                    // Clean up styles
-                    if (this.tailwindStyles) {
-                        this.tailwindStyles.remove();
-                    }
-                     // Reset MathJax state
-                    if (window.MathJax) {
-                        try {
-                        window.MathJax.typesetClear();
-                        } catch (e) {
-                        console.warn("MathJax cleanup error:", e);
-                        }
-                    }
-                }
-                private updateTheme = () => {
-                    // Update theme class on all react component containers
-                    document.querySelectorAll('.react-component-container').forEach(el => {
-                        if (document.body.hasClass('theme-dark')) {
-                            el.classList.add('theme-dark');
-                            el.classList.add('dark');
-                            el.classList.remove('theme-light');
-                        } else {
-                            el.classList.add('theme-light');
-                            el.classList.remove('dark');
-                            el.classList.remove('theme-dark');
-                        }
-                    });
-                };
-                    
+}
+interface ReactiveNotesSettings {
+    mathJaxEnabled: boolean;
+    mathJaxMode: 'auto' | 'manual' | 'off';
+    forceTheme: 'dark' | 'light' | 'auto';
 
-                private async parseMarkdownInHtml(container: HTMLElement) {
-                    // Query all divs or specific HTML blocks you want to process
-                    const htmlBlocks = Array.from(container.querySelectorAll('div:not(.markdown-rendered)')) as HTMLDivElement[];
-                    //console.log('Processing HTML container:', container);
-                    // Iterate over each div block
-                    for (const block of htmlBlocks) {
-                        // Check if it already contains rendered Markdown (to avoid double processing)
-                        if (block.querySelector('.markdown-rendered')) continue;
-                        
-                        // Render Markdown for the inner content of each block
-                        await MarkdownRenderer.render(
-                            this.app,
-                            block.textContent || "", // // Get text content
-                            block,           // Target container for rendered Markdown
-                            '',              // Path (optional, current file path if needed)
-                            this             // Plugin context
-                        );
-                        /*
-                        // Alternative if more control is needed:
-                        // Create a temporary div to safely extract text
-                        const tempDiv = document.createElement('div');
-                        tempDiv.appendChild(block.cloneNode(true));
-                        const safeContent = tempDiv.textContent || "";
-                        
-                        await MarkdownRenderer.renderMarkdown(
-                        this.app,
-                        safeContent,
-                        block,
-                        '',
-                        this
-                        );
-                        */
-                        
-                        // After rendering, mark the block to avoid double processing
-                        block.classList.add('markdown-rendered');
-                    }
-                }
-                
-                
+}
+
+const DEFAULT_SETTINGS: ReactiveNotesSettings = {
+    mathJaxEnabled: true,
+    mathJaxMode: 'auto',
+    forceTheme: 'auto',
+};
+export default class ReactNotesPlugin extends Plugin {
+    private tailwindStyles: HTMLStyleElement | null = null; // Tailwind styles reference
+    settings: ReactiveNotesSettings
+    
+    async onload() {
+        try {
+            await this.loadSettings();
+            await loadMathJax();      
+            // Read the CSS file using Obsidian's API
+            // - only left here for development purposes,
+            // Users wont have this in production, we may use the build:css script to generate and add the css file in future
+            const css = await this.app.vault.adapter.read(`${this.manifest.dir}/outStyles.css`);
+            
+            // Inject the CSS
+            const style = document.createElement('style');
+            style.id = 'tailwind-styles';
+            style.textContent = css;
+            document.head.appendChild(style);
+            this.tailwindStyles = style;
+        } catch (error) {
+            console.error("Failed to load CSS file:", error);
+        }
+        // Listen for theme changes
+        this.registerEvent(
+            this.app.workspace.on('css-change', () => {
+                this.updateTheme();
+            })
+        );
+        // Register markdown processor
+        this.registerMarkdownCodeBlockProcessor(
+            'react',
+            (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
+                const child = new ReactComponentChild(el, this, ctx);
+                ctx.addChild(child);
+                // Set a timeout to detect long-running operations
+                const timeoutId = setTimeout(() => {
+                    new Notice('React component taking too long to render. Check for expensive operations.');
+                }, 3000);
+                child.render(source);
+                clearTimeout(timeoutId);
             }
+        );
+        // Register a global Markdown postprocessor for HTML
+        this.registerMarkdownPostProcessor((element, context) => {
+            // Only process elements that are within ReactiveNotes components
+            if (element.closest('.react-component-container')) {
+                this.parseMarkdownInHtml(element);
+            }
+        });
+        // Initial theme setup
+        this.updateTheme();
+    this.addSettingTab(new ReactiveNotesSettingTab(this.app, this));
+    }
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
+    onunload() {
+        // Clean up styles
+        if (this.tailwindStyles) {
+            this.tailwindStyles.remove();
+        }
+            // Reset MathJax state
+        if (window.MathJax) {
+            try {
+            window.MathJax.typesetClear();
+            } catch (e) {
+            console.warn("MathJax cleanup error:", e);
+            }
+        }
+    }
+    public updateTheme = () => {
+        // Update theme class on all react component containers
+        document.querySelectorAll('.react-component-container').forEach(el => {
+            if (document.body.hasClass('theme-dark')) {
+                el.classList.add('theme-dark');
+                el.classList.add('dark');
+                el.classList.remove('theme-light');
+            } else {
+                el.classList.add('theme-light');
+                el.classList.remove('dark');
+                el.classList.remove('theme-dark');
+            }
+            if (this.settings.forceTheme === 'dark') {
+                el.classList.add('theme-dark');
+                el.classList.add('dark');
+                el.classList.remove('theme-light');
+            }
+            else if (this.settings.forceTheme === 'light') {
+                el.classList.add('theme-light');
+                el.classList.remove('dark');
+                el.classList.remove('theme-dark');
+            }
+        });
+    };
+        
+
+    private async parseMarkdownInHtml(container: HTMLElement) {
+        // Query all divs or specific HTML blocks you want to process
+        const htmlBlocks = Array.from(container.querySelectorAll('div:not(.markdown-rendered)')) as HTMLDivElement[];
+        //console.log('Processing HTML container:', container);
+        // Iterate over each div block
+        for (const block of htmlBlocks) {
+            // Check if it already contains rendered Markdown (to avoid double processing)
+            if (block.querySelector('.markdown-rendered')) continue;
+            
+            // Render Markdown for the inner content of each block
+            await MarkdownRenderer.render(
+                this.app,
+                block.textContent || "", // // Get text content
+                block,           // Target container for rendered Markdown
+                '',              // Path (optional, current file path if needed)
+                this             // Plugin context
+            );
+            /*
+            // Alternative if more control is needed:
+            // Create a temporary div to safely extract text
+            const tempDiv = document.createElement('div');
+            tempDiv.appendChild(block.cloneNode(true));
+            const safeContent = tempDiv.textContent || "";
+            
+            await MarkdownRenderer.renderMarkdown(
+            this.app,
+            safeContent,
+            block,
+            '',
+            this
+            );
+            */
+            
+            // After rendering, mark the block to avoid double processing
+            block.classList.add('markdown-rendered');
+        }
+    }
+    
+    
+}
+
+class ReactiveNotesSettingTab extends PluginSettingTab {
+    plugin: ReactNotesPlugin;
+    
+    constructor(app: App, plugin: ReactNotesPlugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+    
+    display(): void {
+        const {containerEl} = this;
+        containerEl.empty();
+        new Setting(containerEl)
+            .setName('Force Theme')
+            .setDesc('Force a specific theme for all components')
+            .addDropdown(dropdown => dropdown
+                .addOption('auto', 'Auto')
+                .addOption('dark', 'Dark')
+                .addOption('light', 'Light')
+                .setValue(this.plugin.settings.forceTheme)
+                .onChange(async (value) => {
+                    this.plugin.settings.forceTheme = value as 'dark' | 'light' | 'auto';
+                    await this.plugin.saveSettings();
+                    this.plugin.updateTheme();
+                }));
+        new Setting(containerEl)
+            .setName('Enable MathJax')
+            .setDesc('Process MathJax in React components')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.mathJaxEnabled)
+                .onChange(async (value) => {
+                    this.plugin.settings.mathJaxEnabled = value;
+                    await this.plugin.saveSettings();
+                }));
+    }
+}

@@ -162,7 +162,8 @@ Import these definitions into other components using vaultImport().
 ### 9. LaTeX Math Rendering with MathJax 
 - Display complex mathematical and scientific notations beautifully. 
 - Supports standard LaTeX syntax within your React components. 
-- Automatic rendering of inline ($...$) and display ($$...$$) math. 
+- Automatic post rendering of inline ($...$) and display ($$...$$) math according to standard latex rules. 
+- To display a dollar ($) character either first escape this character /$ or turn off MathJax post-rendering
 
 
 ## 📚  Available Libraries & Components
